@@ -51,8 +51,8 @@ export const COMMANDS: Record<string, CommandHandler> = {
     { text: 'TERM=xterm-256color', type: 'default' },
     { text: 'EDITOR=vim', type: 'default' },
     { text: 'LANG=en_US.UTF-8', type: 'default' },
-    { text: 'MOOD=caffeinated', type: 'default' },
-    { text: 'SIDE_PROJECTS=too_many', type: 'default' },
+    { text: 'MOOD=sleepy', type: 'default' },
+    { text: 'SIDE_PROJECTS=like 3', type: 'default' },
     { text: 'IMPOSTOR_SYNDROME=1', type: 'default' },
     { text: 'PATH=/usr/local/bin:/usr/bin:/bin', type: 'default' },
   ],
@@ -62,7 +62,7 @@ export const COMMANDS: Record<string, CommandHandler> = {
   ],
 
   hostname: (_args, _ctx) => [
-    { text: 'portfolio', type: 'default' },
+    { text: 'ronakos', type: 'default' },
   ],
 
   id: (_args, _ctx) => [
@@ -101,7 +101,6 @@ export const COMMANDS: Record<string, CommandHandler> = {
       free: 'free - display memory usage. flags: -h',
       skills: 'skills - display technical skills',
       links: 'links - display contact and social links',
-      contact: 'contact - alias for links',
       ping: 'ping - send ICMP echo requests to a host',
       git: 'git - the stupid content tracker',
       fortune: 'fortune - print a random quote',
@@ -131,11 +130,11 @@ export const COMMANDS: Record<string, CommandHandler> = {
       { text: `USER         PID  %CPU  %MEM  COMMAND`, type: 'secondary' },
       { text: `root           1   0.0   0.1  /sbin/init`, type: 'default' },
       { text: `root          42   0.0   0.2  /usr/lib/systemd/systemd-journald`, type: 'default' },
-      { text: `user         137   2.4   8.1  portfolioBrowser --renderer`, type: 'default' },
-      { text: `user         613   0.1   1.2  musicPlayer`, type: 'default' },
+      { text: `user         137   2.4   8.1  cmd --renderer`, type: 'default' },
+      { text: `user         613   0.1   1.2  music`, type: 'default' },
       { text: `user        1337   0.0   0.0  creativeBlock.daemon [sleeping]`, type: 'default' },
       { text: `user        2048   0.3   3.4  vscode --extension-host`, type: 'default' },
-      { text: `user        3141   0.0   0.0  zombieProject.sh [zombie]`, type: 'default' },
+      { text: `user        3141   0.0   0.0  zombie.sh [zombie]`, type: 'default' },
       { text: `user        4200   0.0   0.1  ronakOS (uptime: ${up})`, type: 'default' },
       { text: `user        9000   0.0   0.0  impostor_syndrome [cannot kill]`, type: 'default' },
       { text: `root        9999   0.0   0.0  [kworker/0:0]`, type: 'secondary' },
@@ -147,18 +146,18 @@ export const COMMANDS: Record<string, CommandHandler> = {
     const unit = h ? 'human' : 'bytes'
     void unit
     return [
-      { text: `Filesystem       Size   Used  Avail  Use%  Mounted on`, type: 'secondary' },
-      { text: `/dev/sda1         50G    31G    19G   62%  /`, type: 'default' },
-      { text: `/dev/sda2        200G   147G    53G   74%  /home`, type: 'default' },
-      { text: `tmpfs            16G    1.2G    15G    8%  /tmp`, type: 'default' },
-      { text: `portfoliofs      ∞      —      ∞     —    /imagination`, type: 'default' },
+      { text: `Filesystem     Size   Used  Avail  Use%   Mounted on`, type: 'secondary' },
+      { text: `/dev/sda1       50G    31G    19G   62%   /`, type: 'default' },
+      { text: `/dev/sda2      200G   147G    53G   74%   /home`, type: 'default' },
+      { text: `tmpfs           16G   1.2G    15G    8%   /tmp`, type: 'default' },
+      { text: `ronakfs           ∞     --      ∞    --   /imagination`, type: 'default' },
     ]
   },
 
   free: (_args, _ctx) => [
-    { text: `               total      used      free    shared   buff/cache   available`, type: 'secondary' },
-    { text: `Mem:           32768      9842      8201       412        14724       21901`, type: 'default' },
-    { text: `Swap:           8192       103      8089`, type: 'default' },
+    { text: `             total     used     free    shared   buff/cache   available`, type: 'secondary' },
+    { text: `Mem:         32768     9842     8201    412      14724        21901`, type: 'default' },
+    { text: `Swap:        8192      103      8089`, type: 'default' },
   ],
 
   skills: (_args, _ctx) => [
@@ -189,8 +188,6 @@ export const COMMANDS: Record<string, CommandHandler> = {
     { text: 'Email', type: 'accent' },
     { text: '  ronakch8@gmail.com', type: 'default' },
   ],
-
-  contact: (args, ctx) => COMMANDS.links(args, ctx),
 
   ping: (args, _ctx) => {
     const host = args.trim() || 'localhost'
