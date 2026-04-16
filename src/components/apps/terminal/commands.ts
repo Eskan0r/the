@@ -101,7 +101,6 @@ export const COMMANDS: Record<string, CommandHandler> = {
       free: 'free - display memory usage. flags: -h',
       skills: 'skills - display technical skills',
       links: 'links - display contact and social links',
-      ping: 'ping - send ICMP echo requests to a host',
       git: 'git - the stupid content tracker',
       fortune: 'fortune - print a random quote',
       cowsay: 'cowsay - cow says a thing',
@@ -188,25 +187,6 @@ export const COMMANDS: Record<string, CommandHandler> = {
     { text: 'Email', type: 'accent' },
     { text: '  ronakch8@gmail.com', type: 'default' },
   ],
-
-  ping: (args, _ctx) => {
-    const host = args.trim() || 'localhost'
-    const ms = () => (Math.random() * 20 + 1).toFixed(3)
-    return [
-      { text: ``, type: 'default' },
-      { text: `Pinging ${host} with 32 bytes of data:`, type: 'default' },
-      { text: `Reply from ${host}: bytes=32 time=${ms()} ms ttl=115`, type: 'default' },
-      { text: `Reply from ${host}: bytes=32 time=${ms()} ms ttl=115`, type: 'default' },
-      { text: `Reply from ${host}: bytes=32 time=${ms()} ms ttl=115`, type: 'default' },
-      { text: `Reply from ${host}: bytes=32 time=${ms()} ms ttl=115`, type: 'default' },
-      { text: ``, type: 'default' },
-      { text: `Ping statistics for ${host}:`, type: 'default' },
-      { text: `    Packets: Sent = 4, Recieved = 4, Lost = 0 (0% loss),`, type: 'default' },
-      { text: `Approximate round trip times in milli-seconds:`, type: 'default' },
-      { text: `    Minimum = ${ms()} ms, Maximum = ${ms()} ms, Average = ${ms()} ms`, type: 'default' },
-      { text: ``, type: 'default' },
-    ]
-  },
 
   git: (args, _ctx) => {
     const sub = args.trim()
