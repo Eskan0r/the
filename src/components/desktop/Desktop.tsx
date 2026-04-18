@@ -1,5 +1,6 @@
 import { useWindowStore } from '../../store/windowStore'
 import DesktopIcon from './DesktopIcon'
+import SpaceBackground from './SpaceBackground'
 
 function TerminalIconSVG() {
   return (
@@ -45,7 +46,7 @@ const DESKTOP_APPS = [
   },
   {
     id: 'stocks-main', label: 'stocks', appType: 'stocks',
-    title: 'RonakOS Markets', width: 900, height: 600,
+    title: 'market.exe', width: 900, height: 600,
     icon: <StocksIconSVG />,
   },
 ]
@@ -54,20 +55,26 @@ export default function Desktop() {
   const { openWindow } = useWindowStore()
 
   return (
-    <div className="desktop-bg" style={{ position: 'fixed', inset: 0 }}>
-      <div style={{ position: 'absolute', top: 20, left: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {DESKTOP_APPS.map((app) => (
-          <DesktopIcon
-            key={app.id}
-            label={app.label}
-            icon={app.icon}
-            onDoubleClick={() => openWindow({
-              id: app.id, title: app.title,
-              appType: app.appType, width: app.width, height: app.height,
-            })}
-          />
-        ))}
+    <>
+      <SpaceBackground />
+      <div
+        style={{ position: 'fixed', inset: 0, zIndex: 1 }}
+        onClick={() => {}}
+      >
+        <div style={{ position: 'absolute', top: 20, left: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {DESKTOP_APPS.map((app) => (
+            <DesktopIcon
+              key={app.id}
+              label={app.label}
+              icon={app.icon}
+              onDoubleClick={() => openWindow({
+                id: app.id, title: app.title,
+                appType: app.appType, width: app.width, height: app.height,
+              })}
+            />
+          ))}
+        </div>
       </div>
-    </div>
+    </>
   )
 }

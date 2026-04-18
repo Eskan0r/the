@@ -39,14 +39,9 @@ const CASCADE_OFFSET = 24
 function nextCascadePos(windows: WindowState[], width: number, height: number) {
   const visible = windows.filter((w) => !w.isMinimized && !w.isMaximized)
   const idx = visible.length
-  const baseX = 80 + (idx * CASCADE_OFFSET) % 200
-  const baseY = 60 + (idx * CASCADE_OFFSET) % 120
-  const maxX = window.innerWidth - width - 20
-  const maxY = window.innerHeight - height - TASKBAR_HEIGHT - 20
-  return {
-    x: Math.min(baseX, Math.max(20, maxX)),
-    y: Math.min(baseY, Math.max(20, maxY)),
-  }
+  const x = Math.max(0, Math.round((window.innerWidth - width) / 2) + (idx * CASCADE_OFFSET))
+  const y = Math.max(0, Math.round((window.innerHeight - TASKBAR_HEIGHT - height) / 2) + (idx * CASCADE_OFFSET))
+  return { x, y }
 }
 
 export const useWindowStore = create<WindowStore>((set, get) => ({

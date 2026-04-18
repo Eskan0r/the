@@ -89,6 +89,7 @@ export const COMMANDS: Record<string, CommandHandler> = {
       clear: 'clear - clear the terminal screen',
       date: 'date - print current date and time',
       uname: 'uname - print system information. flags: -a',
+      open: 'open - open an application. usage: open [app]. apps: stocks',
       neofetch: 'neofetch - system info with ASCII art',
       history: 'history - print command history for this session',
       env: 'env - print environment variables',
@@ -288,6 +289,7 @@ export const COMMANDS: Record<string, CommandHandler> = {
     { text: `  ${'echo [text]'.padEnd(14)} print text`, type: 'default' },
     { text: `  ${'clear'.padEnd(14)} clear the terminal`, type: 'default' },
     { text: `  ${'date'.padEnd(14)} current date and time`, type: 'default' },
+    { text: `  ${'open [app]'.padEnd(14)} open an application`, type: 'default' },
     { text: `  ${'uname -a'.padEnd(14)} system information`, type: 'default' },
     { text: `  ${'neofetch'.padEnd(14)} system info, but make it art`, type: 'default' },
     { text: '' },
@@ -392,6 +394,23 @@ export const COMMANDS: Record<string, CommandHandler> = {
       return [{ text: 'Linux portfolio 6.6.0-arch1 #1 SMP PREEMPT x86_64 GNU/Linux', type: 'default' }]
     }
     return [{ text: 'Linux', type: 'default' }]
+  },
+
+  'open': (args, _ctx) => {
+    const target = args.trim().toLowerCase()
+    if (target === 'stocks' || target === 'markets') {
+      import('../../../store/windowStore').then(({ useWindowStore }) => {
+        useWindowStore.getState().openWindow({
+          id: 'stocks-main',
+          title: 'RonakOS Markets',
+          appType: 'stocks',
+          width: 900,
+          height: 600,
+        })
+      })
+      return [{ text: 'opening RonakOS Markets...', type: 'secondary' }]
+    }
+    return [{ text: `open: cannot open '${target}': no application found`, type: 'error' }]
   },
 
   neofetch: (_args, ctx) => {

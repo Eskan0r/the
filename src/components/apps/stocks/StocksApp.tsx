@@ -72,7 +72,7 @@ function StocksLogin() {
       <div style={{ width: 320 }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{ color: 'var(--accent)', fontSize: 16, fontWeight: 700, letterSpacing: '0.06em' }}>
-            RonakOS Markets
+            market.exe
           </div>
           <div style={{ color: 'var(--text-secondary)', fontSize: 11, marginTop: 4 }}>
             {mode === 'signin' ? 'sign in to trade' : 'create account'}

@@ -28,7 +28,7 @@ export default function Taskbar() {
       paddingLeft: 12, paddingRight: 12, zIndex: 9999, gap: 8,
     }}>
       <div style={{ color: 'var(--accent)', fontSize: 11, letterSpacing: '0.06em', flexShrink: 0, fontWeight: 500 }}>
-        ~/RonakOS
+        ~/ronak
       </div>
 
       <div style={{ width: 1, height: 14, background: 'var(--border)', flexShrink: 0 }} />
