@@ -1,14 +1,15 @@
 import { useWindowStore } from '../../store/windowStore'
 import Window from './Window'
 import Terminal from '../apps/terminal/Terminal'
+import StocksApp from '../apps/stocks/StocksApp.tsx'
 
-/** map appType strings. new apps here. */
 const APP_COMPONENTS: Record<string, React.ComponentType<{ windowId: string }>> = {
   terminal: Terminal,
+  stocks: StocksApp,
 }
 
 export default function WindowManager() {
-  const { windows, focusWindow } = useWindowStore()
+  const { windows } = useWindowStore()
   const maxZ = Math.max(...windows.map((w) => w.zIndex), 0)
 
   return (
