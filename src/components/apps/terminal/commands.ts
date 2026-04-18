@@ -11,7 +11,6 @@ export interface TerminalContext {
 
 export type CommandHandler = (args: string, ctx: TerminalContext) => OutputLine[]
 
-// filesystem
 const FS: Record<string, { type: 'dir' | 'file'; content?: string }> = {
   'projects': { type: 'dir' },
   'scam.exe': {
@@ -37,7 +36,6 @@ function uptime(pageLoadTime: number): string {
   return `${s}s`
 }
 
-// definitions
 export const COMMANDS: Record<string, CommandHandler> = {
 
   history: (_args, _ctx) => {
@@ -177,7 +175,6 @@ export const COMMANDS: Record<string, CommandHandler> = {
   ],
 
   links: (_args, _ctx) => [
-    // TODO: replace with real URLs
     { text: 'GitHub', type: 'accent' },
     { text: '  https://github.com/Eskan0r', type: 'default' },
     { text: '', type: 'default' },
@@ -226,13 +223,14 @@ export const COMMANDS: Record<string, CommandHandler> = {
 
   fortune: (_args, _ctx) => {
     const quotes = [
-      // TODO: add personal favorites
-      `"Any fool can write code that a computer can understand.\n  Good programmers write code that humans can understand."\n  — Martin Fowler`,
-      `"Debugging is twice as hard as writing the code in the first place.\n  Therefore, if you write the code as cleverly as possible,\n  you are, by definition, not smart enough to debug it."\n  — Brian Kernighan`,
-      `"First, solve the problem. Then, write the code."\n  — John Johnson`,
-      `"It works on my machine."\n  — every developer, always`,
-      `"The best time to start was yesterday.\n  The second best time is after this coffee."\n  — unknown`,
-      `"There are only two hard things in CS:\n  cache invalidation, naming things, and off-by-one errors."`,
+      `The monkey climbs the tree. - Venkat Vetsa`,
+      `A closed door has two sides.`,
+      `Tuesday will come regardless of if you are ready for it.`,
+      `A burned match and an unlit one weight basically the same.`,
+      `The ice does not apologize for melting.`,
+      `The second step always requires the first step.`,
+      `The number four has never been five.`,
+      `A full glass is heavier than an empty one.`,
     ]
     const pick = quotes[Math.floor(Math.random() * quotes.length)]
     return pick.split('\n').map((line) => ({ text: line, type: 'default' as const }))
@@ -297,9 +295,8 @@ export const COMMANDS: Record<string, CommandHandler> = {
   ],
 
   whoami: (_args, _ctx) => [
-    // TODO: replace with real bio
-    { text: 'Full-stack developer. Into security and ML.', type: 'default' },
-    { text: "Building things that work and look like they do.", type: 'default' },
+    { text: 'I be makin things', type: 'default' },
+    { text: "things that work and look like they do.", type: 'default' },
     { text: '' },
     { text: "Type 'help' to explore.", type: 'secondary' },
   ],
@@ -320,7 +317,6 @@ export const COMMANDS: Record<string, CommandHandler> = {
       ]
     }
 
-    // regular ls — no dotfiles
     const cwd = ctx.cwd
     if (cwd === '~/projects' || cwd === 'projects') {
       return [

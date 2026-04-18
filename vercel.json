@@ -1,11 +1,5 @@
 {
   "devCommand": "vite",
   "buildCommand": "tsc && vite build",
-  "outputDirectory": "dist",
-  "crons": [
-    {
-      "path": "/api/prices",
-      "schedule": "* * * * *"
-    }
-  ]
+  "outputDirectory": "dist"
 }

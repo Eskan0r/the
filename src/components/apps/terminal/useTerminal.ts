@@ -48,7 +48,6 @@ export function useTerminal() {
         setOutput([])
         return
       }
-      // override for real history
       if (trimmed === 'history') {
         setOutput((prev) => [
           ...prev,

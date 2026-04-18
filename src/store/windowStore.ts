@@ -9,7 +9,6 @@ export interface WindowState {
   isClosing: boolean
   position: { x: number; y: number }
   size: { width: number; height: number }
-  // saved size/pos before maximize
   preMaximize?: { x: number; y: number; width: number; height: number }
   zIndex: number
 }
