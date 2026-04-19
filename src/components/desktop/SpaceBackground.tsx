@@ -331,6 +331,9 @@ function isOffscreen(pos: Vec2, W: number, H: number): boolean {
 export default function SpaceBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const cursorBlackHole = useDesktopStore((s) => s.cursorBlackHole)
+  const bhStrength = useDesktopStore((s) => s.bhStrength)
+  const bhStrengthRef = useRef(bhStrength)
+  useEffect(() => { bhStrengthRef.current = bhStrength }, [bhStrength])
   const cursorBHRef = useRef(cursorBlackHole)
   useEffect(() => { cursorBHRef.current = cursorBlackHole }, [cursorBlackHole])
 
@@ -538,7 +541,7 @@ export default function SpaceBackground() {
         const dist = Math.sqrt(distSq)
         if (dist < distMin) distMin = dist
         if (dist < bh.radius + 2) { obj.swallowed = true; return }
-        const force = (G * BLACK_HOLE_MASS) / distSq
+        const force = (G * BLACK_HOLE_MASS * bhStrengthRef.current) / distSq
         obj.vel.x += (dx / dist) * force
         obj.vel.y += (dy / dist) * force
       })

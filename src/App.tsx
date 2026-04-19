@@ -3,6 +3,7 @@ import './styles/globals.css'
 import Desktop from './components/desktop/Desktop'
 import Taskbar from './components/desktop/Taskbar'
 import WindowManager from './components/window/WindowManager'
+import GravityControls from './components/desktop/GravityControls'
 import { useAuthStore } from './store/authStore'
 import { useDesktopStore } from './store/desktopStore'
 
@@ -29,6 +30,7 @@ export default function App() {
       <Desktop />
       <WindowManager />
       <Taskbar />
+      <GravityControls />
       {cursorBlackHole && (
         <div style={{
           position: 'fixed',
