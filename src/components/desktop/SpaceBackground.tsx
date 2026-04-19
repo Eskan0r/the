@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useDesktopStore } from '../../store/desktopStore'
 
 const G = 0.4
 const BLACK_HOLE_MASS = 8000
@@ -42,19 +43,19 @@ let idCounter = 0
 const CONTINENTS: Vec2[][] = [
   [
     { x: -0.65, y: -0.75 }, { x: -0.35, y: -0.70 }, { x: -0.25, y: -0.45 },
-    { x: -0.40, y: -0.10 }, { x: -0.55, y: 0.15 }, { x: -0.50, y: 0.55 },
-    { x: -0.65, y: 0.75 }, { x: -0.78, y: 0.50 }, { x: -0.72, y: 0.10 },
+    { x: -0.40, y: -0.10 }, { x: -0.55, y: 0.15 },  { x: -0.50, y: 0.55 },
+    { x: -0.65, y: 0.75 },  { x: -0.78, y: 0.50 },  { x: -0.72, y: 0.10 },
     { x: -0.80, y: -0.30 }, { x: -0.70, y: -0.60 },
   ],
   [
     { x: -0.05, y: -0.75 }, { x: 0.30, y: -0.70 }, { x: 0.45, y: -0.45 },
-    { x: 0.30, y: -0.20 }, { x: 0.40, y: 0.10 }, { x: 0.35, y: 0.50 },
-    { x: 0.15, y: 0.80 }, { x: -0.05, y: 0.65 }, { x: -0.10, y: 0.25 },
-    { x: 0.05, y: 0.00 }, { x: -0.08, y: -0.40 },
+    { x: 0.30, y: -0.20 }, { x: 0.40, y: 0.10 },   { x: 0.35, y: 0.50 },
+    { x: 0.15, y: 0.80 },  { x: -0.05, y: 0.65 },  { x: -0.10, y: 0.25 },
+    { x: 0.05, y: 0.00 },  { x: -0.08, y: -0.40 },
   ],
   [
     { x: 0.30, y: -0.70 }, { x: 0.75, y: -0.55 }, { x: 0.85, y: -0.20 },
-    { x: 0.70, y: 0.10 }, { x: 0.45, y: 0.05 }, { x: 0.30, y: -0.20 },
+    { x: 0.70, y: 0.10 },  { x: 0.45, y: 0.05 },  { x: 0.30, y: -0.20 },
   ],
   [
     { x: 0.50, y: 0.50 }, { x: 0.72, y: 0.42 }, { x: 0.80, y: 0.62 },
@@ -73,6 +74,7 @@ function makeCircleShape(r: number, pts = 32): Vec2[] {
   })
 }
 
+// irregular polygon
 function makeAsteroidShape(size: number): Vec2[] {
   const pts = 6 + Math.floor(Math.random() * 5)
   return Array.from({ length: pts }, (_, i) => {
@@ -82,13 +84,14 @@ function makeAsteroidShape(size: number): Vec2[] {
   })
 }
 
+// random edge, loosely at screen center
 function randomEdgeSpawn(W: number, H: number, speed = 0.4 + Math.random() * 0.8): { pos: Vec2; vel: Vec2 } {
   const edge = Math.floor(Math.random() * 4)
   let pos: Vec2
   switch (edge) {
-    case 0: pos = { x: Math.random() * W, y: -DESPAWN_MARGIN }; break
-    case 1: pos = { x: W + DESPAWN_MARGIN, y: Math.random() * H }; break
-    case 2: pos = { x: Math.random() * W, y: H + DESPAWN_MARGIN }; break
+    case 0:  pos = { x: Math.random() * W, y: -DESPAWN_MARGIN }; break
+    case 1:  pos = { x: W + DESPAWN_MARGIN, y: Math.random() * H }; break
+    case 2:  pos = { x: Math.random() * W, y: H + DESPAWN_MARGIN }; break
     default: pos = { x: -DESPAWN_MARGIN, y: Math.random() * H }; break
   }
   const tx = W * (0.2 + Math.random() * 0.6)
@@ -99,13 +102,14 @@ function randomEdgeSpawn(W: number, H: number, speed = 0.4 + Math.random() * 0.8
   return { pos, vel: { x: (dx / len) * speed, y: (dy / len) * speed } }
 }
 
+// edge, completely random angle
 function randomAngleSpawn(W: number, H: number): { pos: Vec2; vel: Vec2 } {
   const edge = Math.floor(Math.random() * 4)
   let pos: Vec2
   switch (edge) {
-    case 0: pos = { x: Math.random() * W, y: -DESPAWN_MARGIN }; break
-    case 1: pos = { x: W + DESPAWN_MARGIN, y: Math.random() * H }; break
-    case 2: pos = { x: Math.random() * W, y: H + DESPAWN_MARGIN }; break
+    case 0:  pos = { x: Math.random() * W, y: -DESPAWN_MARGIN }; break
+    case 1:  pos = { x: W + DESPAWN_MARGIN, y: Math.random() * H }; break
+    case 2:  pos = { x: Math.random() * W, y: H + DESPAWN_MARGIN }; break
     default: pos = { x: -DESPAWN_MARGIN, y: Math.random() * H }; break
   }
   const angle = Math.random() * Math.PI * 2
@@ -113,11 +117,33 @@ function randomAngleSpawn(W: number, H: number): { pos: Vec2; vel: Vec2 } {
   return { pos, vel: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed } }
 }
 
+// asteroid edge or random angle
 function makeAsteroid(W: number, H: number): SpaceObject {
   const { pos, vel } = Math.random() < 0.5 ? randomAngleSpawn(W, H) : randomEdgeSpawn(W, H)
   const size = 7 + Math.random() * 16
   return {
     id: idCounter++, type: 'asteroid', pos, vel,
+    shape: makeAsteroidShape(size),
+    rotation: Math.random() * Math.PI * 2,
+    rotationSpeed: (Math.random() - 0.5) * 0.025,
+    opacity: 0.5 + Math.random() * 0.4,
+    size, baseSize: size, mass: massFromSize(size), swallowed: false,
+  }
+}
+
+// asteroid random screen position, random velocity
+function makeRandomAsteroid(): SpaceObject {
+  const angle = Math.random() * Math.PI * 2
+  const speed = 1.5 + Math.random() * 3.5
+  const pos: Vec2 = {
+    x: Math.random() * window.innerWidth,
+    y: Math.random() * window.innerHeight,
+  }
+  const size = 7 + Math.random() * 16
+  return {
+    id: idCounter++, type: 'asteroid',
+    pos,
+    vel: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
     shape: makeAsteroidShape(size),
     rotation: Math.random() * Math.PI * 2,
     rotationSpeed: (Math.random() - 0.5) * 0.025,
@@ -139,32 +165,27 @@ function makePlanetWithMoon(W: number, H: number): SpaceObject[] {
     rotation: 0, rotationSpeed: 0.003,
     opacity: 0.45 + Math.random() * 0.3,
     size, baseSize: size, mass: massFromSize(size), swallowed: false,
-    ...(hasRing ? {} : {}),
   }
-    ; (planet as any).hasRing = hasRing
+  ;(planet as any).hasRing = hasRing
 
   if (!hasMoon) return [planet]
 
-  // v = sqrt(G * M / r)
   const orbitRadius = size * (1.8 + Math.random() * 1.2)
   const moonSize = size * (0.18 + Math.random() * 0.2)
   const angle = Math.random() * Math.PI * 2
   const direction = Math.random() < 0.5 ? 1 : -1
   const orbitalSpeed = Math.sqrt((G * planet.mass * 300) / orbitRadius) * direction
 
-  const moonPos: Vec2 = {
-    x: pos.x + Math.cos(angle) * orbitRadius,
-    y: pos.y + Math.sin(angle) * orbitRadius,
-  }
-  // moon velocity = planet velocity + orbital tangent
-  const moonVel: Vec2 = {
-    x: planet.vel.x + Math.cos(angle + Math.PI / 2) * orbitalSpeed,
-    y: planet.vel.y + Math.sin(angle + Math.PI / 2) * orbitalSpeed,
-  }
-
   const moon: SpaceObject = {
     id: idCounter++, type: 'moon',
-    pos: moonPos, vel: moonVel,
+    pos: {
+      x: pos.x + Math.cos(angle) * orbitRadius,
+      y: pos.y + Math.sin(angle) * orbitRadius,
+    },
+    vel: {
+      x: planet.vel.x + Math.cos(angle + Math.PI / 2) * orbitalSpeed,
+      y: planet.vel.y + Math.sin(angle + Math.PI / 2) * orbitalSpeed,
+    },
     shape: makeCircleShape(moonSize),
     rotation: 0, rotationSpeed: 0.005,
     opacity: planet.opacity * 0.8,
@@ -301,6 +322,7 @@ function spawnCollisionDebris(pos: Vec2, vel: Vec2): SpaceObject[] {
   })
 }
 
+// offscreen cull
 function isOffscreen(pos: Vec2, W: number, H: number): boolean {
   return pos.x < -DESPAWN_MARGIN * 2 || pos.x > W + DESPAWN_MARGIN * 2 ||
     pos.y < -DESPAWN_MARGIN * 2 || pos.y > H + DESPAWN_MARGIN * 2
@@ -308,6 +330,9 @@ function isOffscreen(pos: Vec2, W: number, H: number): boolean {
 
 export default function SpaceBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const cursorBlackHole = useDesktopStore((s) => s.cursorBlackHole)
+  const cursorBHRef = useRef(cursorBlackHole)
+  useEffect(() => { cursorBHRef.current = cursorBlackHole }, [cursorBlackHole])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -330,6 +355,7 @@ export default function SpaceBackground() {
     for (let i = 0; i < 2; i++) objects.push(...makeDebrisGroup(W, H))
 
     let lastSpawn = 0
+    const mousePos = { x: -9999, y: -9999 }
 
     const onResize = () => {
       W = window.innerWidth; H = window.innerHeight
@@ -337,7 +363,19 @@ export default function SpaceBackground() {
       blackHoles[0].pos = { x: W * 0.3, y: H * 0.4 }
       blackHoles[1].pos = { x: W * 0.72, y: H * 0.6 }
     }
+
+    const onMouseMove = (e: MouseEvent) => {
+      mousePos.x = e.clientX
+      mousePos.y = e.clientY
+    }
+
+    const onClick = () => {
+      if (cursorBHRef.current) objects.push(makeRandomAsteroid())
+    }
+
     window.addEventListener('resize', onResize)
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('click', onClick)
 
     function getAccent() {
       return getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#00ff88'
@@ -437,8 +475,8 @@ export default function SpaceBackground() {
       ctx.save()
       ctx.strokeStyle = accent
       const rings = [
-        { r: bh.radius + 5, gap: 0.4, op: 0.55, lw: 1.2 },
-        { r: bh.radius + 11, gap: 0.7, op: 0.3, lw: 0.8 },
+        { r: bh.radius + 5,  gap: 0.4, op: 0.55, lw: 1.2 },
+        { r: bh.radius + 11, gap: 0.7, op: 0.3,  lw: 0.8 },
         { r: bh.radius + 20, gap: 1.1, op: 0.15, lw: 0.6 },
       ]
       rings.forEach(({ r, gap, op, lw }) => {
@@ -468,12 +506,12 @@ export default function SpaceBackground() {
       ctx.strokeRect(-4, -5, 8, 10)
       ctx.beginPath()
       ctx.moveTo(-4, -2); ctx.lineTo(-12, -2)
-      ctx.moveTo(-4, 2); ctx.lineTo(-12, 2)
+      ctx.moveTo(-4, 2);  ctx.lineTo(-12, 2)
       ctx.moveTo(-12, -4); ctx.lineTo(-12, 4)
-      ctx.moveTo(4, -2); ctx.lineTo(12, -2)
-      ctx.moveTo(4, 2); ctx.lineTo(12, 2)
+      ctx.moveTo(4, -2);  ctx.lineTo(12, -2)
+      ctx.moveTo(4, 2);   ctx.lineTo(12, 2)
       ctx.moveTo(12, -4); ctx.lineTo(12, 4)
-      ctx.moveTo(0, -5); ctx.lineTo(0, -10)
+      ctx.moveTo(0, -5);  ctx.lineTo(0, -10)
       ctx.moveTo(0, -10); ctx.lineTo(-3, -8)
       ctx.moveTo(0, -10); ctx.lineTo(3, -8)
       ctx.stroke()
@@ -490,36 +528,34 @@ export default function SpaceBackground() {
       ctx.restore()
     }
 
-    // minimum distance to any black hole
     function applyBlackHoleGravity(obj: SpaceObject): number {
       let distMin = Infinity
-      for (const bh of blackHoles) {
+      blackHoles.forEach((bh, i) => {
+        if (i === 1 && cursorBHRef.current) return
         const dx = bh.pos.x - obj.pos.x
         const dy = bh.pos.y - obj.pos.y
         const distSq = dx * dx + dy * dy
         const dist = Math.sqrt(distSq)
         if (dist < distMin) distMin = dist
-        if (dist < bh.radius + 2) { obj.swallowed = true; return 0 }
+        if (dist < bh.radius + 2) { obj.swallowed = true; return }
         const force = (G * BLACK_HOLE_MASS) / distSq
         obj.vel.x += (dx / dist) * force
         obj.vel.y += (dy / dist) * force
-      }
+      })
       return distMin
     }
 
-    // mutual gravity between all object pairs
     function applyObjectGravity(allObjects: SpaceObject[]) {
       const sources = allObjects.filter(
         (o) => !o.swallowed && (o.type === 'planet' || o.type === 'earth' || o.type === 'asteroid')
       )
-
       for (const obj of allObjects) {
         if (obj.swallowed) continue
         for (const src of sources) {
           if (src.id === obj.id) continue
           const dx = src.pos.x - obj.pos.x
           const dy = src.pos.y - obj.pos.y
-          const distSq = Math.max(dx * dx + dy * dy, 100) // clamp, no explosion at close range
+          const distSq = Math.max(dx * dx + dy * dy, 100)
           const dist = Math.sqrt(distSq)
           const force = (G * src.mass) / distSq
           obj.vel.x += (dx / dist) * force
@@ -528,14 +564,10 @@ export default function SpaceBackground() {
       }
     }
 
-    // min distance between moon and parent
     function enforceMoonMinDist(obj: SpaceObject, objectMap: Map<number, SpaceObject>) {
       if (obj.parentId === undefined || obj.minDistFromParent === undefined) return
       const parent = objectMap.get(obj.parentId)
-      if (!parent || parent.swallowed) {
-        obj.parentId = undefined
-        return
-      }
+      if (!parent || parent.swallowed) { obj.parentId = undefined; return }
       const dx = obj.pos.x - parent.pos.x
       const dy = obj.pos.y - parent.pos.y
       const dist = Math.sqrt(dx * dx + dy * dy)
@@ -544,7 +576,6 @@ export default function SpaceBackground() {
         const ny = dy / dist
         obj.pos.x = parent.pos.x + nx * obj.minDistFromParent
         obj.pos.y = parent.pos.y + ny * obj.minDistFromParent
-        // zero out the radial velocity component
         const radialVel = obj.vel.x * nx + obj.vel.y * ny
         if (radialVel < 0) {
           obj.vel.x -= radialVel * nx
@@ -585,22 +616,30 @@ export default function SpaceBackground() {
       if (timestamp - lastSpawn > 3000) {
         lastSpawn = timestamp
         const roll = Math.random()
-        if (roll < 0.28) objects.push(makeAsteroid(W, H))
+        if      (roll < 0.28) objects.push(makeAsteroid(W, H))
         else if (roll < 0.46) objects.push(...makeDebrisGroup(W, H))
         else if (roll < 0.60) objects.push(...makePlanetWithMoon(W, H))
         else if (roll < 0.68) objects.push(makeAsteroid(W, H), makeAsteroid(W, H))
         else if (roll < 0.80) objects.push(makeMeteor(W, H))
         else if (roll < 0.88) objects.push(...makeEarth(W, H))
         else if (roll < 0.93) objects.push(makeMeteor(W, H), makeMeteor(W, H))
-        else objects.push(makeCow(W, H))
+        else                  objects.push(makeCow(W, H))
       }
 
       checkCollisions()
       if (pendingDebris.length) objects.push(...pendingDebris)
 
       const objectMap = new Map<number, SpaceObject>(objects.map((o) => [o.id, o]))
-
       applyObjectGravity(objects)
+
+      if (cursorBHRef.current && mousePos.x > -9999) {
+        const bh = blackHoles[0]
+        bh.pos.x += (mousePos.x - bh.pos.x) * 0.12
+        bh.pos.y += (mousePos.y - bh.pos.y) * 0.12
+      } else if (!cursorBHRef.current) {
+        blackHoles[0].pos.x += (W * 0.3 - blackHoles[0].pos.x) * 0.04
+        blackHoles[0].pos.y += (H * 0.4 - blackHoles[0].pos.y) * 0.04
+      }
 
       objects = objects.filter((obj) => {
         const distMin = applyBlackHoleGravity(obj)
@@ -624,7 +663,7 @@ export default function SpaceBackground() {
           obj.vel.y = (obj.vel.y / speed) * maxSpeed
         }
 
-        // spaghettification
+        // shrink/fade as object nears event horizon
         const influence = 130
         const swallowZone = 38
         let scaleFactor = 1
@@ -645,15 +684,13 @@ export default function SpaceBackground() {
 
         if (obj.type === 'moon' && obj.parentId !== undefined) {
           const parent = objectMap.get(obj.parentId)
-          if (parent && !parent.swallowed) {
-            drawOrbitPath(parent.pos, obj.pos, obj.opacity)
-          }
+          if (parent && !parent.swallowed) drawOrbitPath(parent.pos, obj.pos, obj.opacity)
         }
 
         if (obj.type === 'meteor') drawMeteorTrail(obj)
         drawOutline(obj, scaleFactor)
         if (obj.type === 'earth') drawEarthContinents(obj, scaleFactor)
-        if ((obj.type === 'planet') && (obj as any).hasRing && obj.baseSize > 28) {
+        if (obj.type === 'planet' && (obj as any).hasRing && obj.baseSize > 28) {
           drawPlanetRing(obj, scaleFactor)
         }
 
@@ -662,7 +699,12 @@ export default function SpaceBackground() {
 
       if (objects.length > 45) objects = objects.slice(-45)
 
-      blackHoles.forEach((bh) => { bh.ringPhase += 0.007; drawBlackHole(bh) })
+      blackHoles.forEach((bh, i) => {
+        bh.ringPhase += 0.007
+        if (i === 1 && cursorBHRef.current) return
+        drawBlackHole(bh)
+      })
+
       satellite.angle += satellite.orbitSpeed
       drawSatellite()
 
@@ -673,6 +715,8 @@ export default function SpaceBackground() {
     return () => {
       cancelAnimationFrame(rafId)
       window.removeEventListener('resize', onResize)
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('click', onClick)
     }
   }, [])
 

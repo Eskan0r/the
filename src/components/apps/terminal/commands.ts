@@ -55,6 +55,14 @@ export const COMMANDS: Record<string, CommandHandler> = {
     { text: 'PATH=/usr/local/bin:/usr/bin:/bin', type: 'default' },
   ],
 
+  gravitate: (_args, _ctx) => {
+    import('../../../store/desktopStore').then(({ useDesktopStore }) => {
+      const current = useDesktopStore.getState().cursorBlackHole
+      useDesktopStore.getState().setCursorBlackHole(!current)
+    })
+    return [{ text: 'gravitational cursor: toggled', type: 'accent' }]
+  },
+
   uptime: (_args, ctx) => [
     { text: `up ${uptime(ctx.pageLoadTime)},  1 user,  load average: 0.42, 0.38, 0.31`, type: 'default' },
   ],
@@ -104,6 +112,7 @@ export const COMMANDS: Record<string, CommandHandler> = {
       fortune: 'fortune - print a random quote',
       cowsay: 'cowsay - cow says a thing',
       sl: 'sl - steam locomotive',
+      gravitate: 'gravitate - toggle cursor black hole, click A!',
     }
     if (!cmd) return [{ text: 'usage: man [command]', type: 'secondary' }]
     const entry = pages[cmd]
@@ -199,7 +208,7 @@ export const COMMANDS: Record<string, CommandHandler> = {
       { text: `    finally fixed that bug that was "almost done" for 2 weeks`, type: 'default' },
       { text: ``, type: 'default' },
       { text: `commit b8c2a09`, type: 'accent' },
-      { text: `    add portfolio OS — it's a whole thing`, type: 'default' },
+      { text: `    add portfolio OS - it's a whole thing`, type: 'default' },
       { text: ``, type: 'default' },
       { text: `commit 9d31f77`, type: 'accent' },
       { text: `    WIP (this commit is a lie, it was not a WIP)`, type: 'default' },
@@ -288,6 +297,7 @@ export const COMMANDS: Record<string, CommandHandler> = {
     { text: `  ${'pwd'.padEnd(14)} print working directory`, type: 'default' },
     { text: `  ${'echo [text]'.padEnd(14)} print text`, type: 'default' },
     { text: `  ${'clear'.padEnd(14)} clear the terminal`, type: 'default' },
+    { text: `  ${'gravitate'.padEnd(14)} toggle cursor black hole, click A!`, type: 'default' },
     { text: `  ${'date'.padEnd(14)} current date and time`, type: 'default' },
     { text: `  ${'open [app]'.padEnd(14)} open an application`, type: 'default' },
     { text: `  ${'uname -a'.padEnd(14)} system information`, type: 'default' },
