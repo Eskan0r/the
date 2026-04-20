@@ -376,6 +376,9 @@ export const COMMANDS: Record<string, CommandHandler> = {
         { text: 'Hint: a downloadable version is coming. Check back soon.', type: 'secondary' },
       ]
     }
+    if (file === 'about.txt') {
+      return [{ text: 'i MAKE things bro whats so hard to understand', type: 'default' }]
+    }
     if (!file) {
       return [{ text: 'usage: cat [file]', type: 'secondary' }]
     }
