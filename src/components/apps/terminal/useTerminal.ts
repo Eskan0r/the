@@ -30,45 +30,40 @@ export function useTerminal() {
   const ctx: TerminalContext = { cwd, setCwd, pageLoadTime }
 
   const submitCommand = useCallback(
-    (raw: string) => {
-      const trimmed = raw.trim()
-      if (!trimmed) {
-        setOutput((prev) => [
-          ...prev,
-          { id: entryCounter++, prompt: `[user@portfolio ${cwd}]$ `, lines: [] },
-        ])
-        return
-      }
-      setHistory((h) => [...h.filter((x) => x !== trimmed), trimmed])
-      setHistoryIndex(-1)
-      setInput('')
-      const promptLabel = `[user@portfolio ${cwd}]$ `
-      const result = runCommand(trimmed, ctx)
-      if (result.length === 1 && result[0].text === '__CLEAR__') {
-        setOutput([])
-        return
-      }
-      if (trimmed === 'history') {
-        setOutput((prev) => [
-          ...prev,
-          {
-            id: entryCounter++,
-            prompt: promptLabel + trimmed,
-            lines: history.map((cmd, i) => ({
-              text: `  ${String(i + 1).padStart(3)}  ${cmd}`,
-              type: 'default' as const,
-            })),
-          },
-        ])
-        return
-      }
-      setOutput((prev) => [
-        ...prev,
-        { id: entryCounter++, prompt: promptLabel + trimmed, lines: result },
-      ])
-    },
-    [cwd]
-  )
+  (raw: string) => {
+    const trimmed = raw.trim()
+    if (!trimmed) return
+
+    const spaceIdx = trimmed.indexOf(' ')
+    const partial = spaceIdx === -1 ? trimmed : trimmed.slice(0, spaceIdx)
+    const args = spaceIdx === -1 ? '' : trimmed.slice(spaceIdx + 1)
+    const matches = COMMAND_NAMES.filter((c) => c.startsWith(partial.toLowerCase()))
+    const resolved = matches.length === 1 ? matches[0] + (args ? ` ${args}` : '') : trimmed
+
+    setHistory((h) => [...h.filter((x) => x !== resolved), resolved])
+    setHistoryIndex(-1)
+    setInput('')
+
+    const promptLabel = `[user@portfolio ${cwd}]$ `
+    const result = runCommand(resolved, ctx)
+
+    if (result.length === 1 && result[0].text === '__CLEAR__') {
+      setOutput([])
+      return
+    }
+
+    if (resolved === trimmed) {
+      setOutput((prev) => [...prev, { id: entryCounter++, prompt: promptLabel + resolved, lines: result }])
+    } else {
+      setOutput((prev) => [...prev, {
+        id: entryCounter++,
+        prompt: promptLabel + resolved,
+        lines: result,
+      }])
+    }
+  },
+  [cwd]
+)
 
   const handleTab = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {

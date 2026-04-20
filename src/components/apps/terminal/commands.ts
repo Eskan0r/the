@@ -112,7 +112,7 @@ export const COMMANDS: Record<string, CommandHandler> = {
       fortune: 'fortune - print a random quote',
       cowsay: 'cowsay - cow says a thing',
       sl: 'sl - steam locomotive',
-      gravitate: 'gravitate - toggle cursor black hole, click A!',
+      gravitate: 'gravitate - toggle cursor black hole, left click to spawn asteroids',
     }
     if (!cmd) return [{ text: 'usage: man [command]', type: 'secondary' }]
     const entry = pages[cmd]
@@ -297,7 +297,7 @@ export const COMMANDS: Record<string, CommandHandler> = {
     { text: `  ${'pwd'.padEnd(14)} print working directory`, type: 'default' },
     { text: `  ${'echo [text]'.padEnd(14)} print text`, type: 'default' },
     { text: `  ${'clear'.padEnd(14)} clear the terminal`, type: 'default' },
-    { text: `  ${'gravitate'.padEnd(14)} toggle cursor black hole, click A!`, type: 'default' },
+    { text: `  ${'gravitate'.padEnd(14)} toggle cursor black hole, left click to spawn asteroids`, type: 'default' },
     { text: `  ${'date'.padEnd(14)} current date and time`, type: 'default' },
     { text: `  ${'open [app]'.padEnd(14)} open an application`, type: 'default' },
     { text: `  ${'uname -a'.padEnd(14)} system information`, type: 'default' },
@@ -365,19 +365,13 @@ export const COMMANDS: Record<string, CommandHandler> = {
     const file = args.trim()
     if (file === 'about.txt') {
       const entry = FS['about.txt']
-      return (entry.content ?? '').split('\n').map((line) => ({
-        text: line,
-        type: 'default' as const,
-      }))
+      return [{ text: 'i MAKE things bro whats so hard to understand', type: 'default' }]
     }
     if (file === 'resume.pdf') {
       return [
         { text: '[binary file — not renderable here]', type: 'warn' },
         { text: 'Hint: a downloadable version is coming. Check back soon.', type: 'secondary' },
       ]
-    }
-    if (file === 'about.txt') {
-      return [{ text: 'i MAKE things bro whats so hard to understand', type: 'default' }]
     }
     if (!file) {
       return [{ text: 'usage: cat [file]', type: 'secondary' }]
