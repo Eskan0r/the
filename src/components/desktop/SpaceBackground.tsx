@@ -65,31 +65,6 @@ interface SupernovaEvent {
   flashOpacity: number
 }
 
-interface NebulaLobe {
-  ox: number; oy: number
-  radius: number
-  colorIdx: number
-}
-
-interface FilamentPath {
-  x1: number; y1: number
-  x2: number; y2: number
-  cp1x: number; cp1y: number
-  cp2x: number; cp2y: number
-}
-
-interface NebulaEvent {
-  type: 'nebula'
-  phase: 'expanding' | 'blooming' | 'collapsing' | 'birth' | 'done'
-  cx: number; cy: number
-  t: number
-  lobes: NebulaLobe[]
-  maxRadius: number
-  progress: number
-  flashOpacity: number
-  filaments: FilamentPath[]
-}
-
 interface ConstellationEvent {
   type: 'constellation'
   phase: 'fadein' | 'hold' | 'fadeout' | 'done'
@@ -99,7 +74,32 @@ interface ConstellationEvent {
   t: number
 }
 
-type StarEvent = SupernovaEvent | NebulaEvent | ConstellationEvent
+type StarEvent = SupernovaEvent | ConstellationEvent
+
+interface CloudParticle {
+  ox: number
+  oy: number
+  r: number
+  baseOpacity: number
+  wobblePhase: number
+  wobbleSpeed: number
+  wobbleAmpX: number
+  wobbleAmpY: number
+}
+
+interface GaseousCloud {
+  id: number
+  pos: Vec2
+  vel: Vec2
+  particles: CloudParticle[]
+  radius: number
+  globalOpacity: number
+  phase: 'fadein' | 'drifting' | 'fadeout'
+  phaseT: number
+  driftFrames: number
+  colorRgb: string
+  accentFraction: number
+}
 
 let idCounter = 0
 
@@ -124,6 +124,13 @@ const CONTINENTS: Vec2[][] = [
     { x: 0.50, y: 0.50 }, { x: 0.72, y: 0.42 }, { x: 0.80, y: 0.62 },
     { x: 0.62, y: 0.78 }, { x: 0.44, y: 0.70 },
   ],
+]
+
+const CLOUD_STATIC_COLORS = [
+  '70,130,255',   // blue
+  '140,70,255',   // purple
+  '55,205,185',   // teal
+  '255,140,80',   // warm amber
 ]
 
 function massFromSize(size: number): number {
@@ -401,51 +408,63 @@ function makeStars(W: number, H: number): Star[] {
   }))
 }
 
-function makeNebulaLobes(maxRadius: number): NebulaLobe[] {
-  const count = 3 + Math.floor(Math.random() * 2)
-  const lobes: NebulaLobe[] = []
-  for (let i = 0; i < count; i++) {
-    const baseAngle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.8
-    const dist = maxRadius * (0.3 + Math.random() * 0.4)
-    lobes.push({
-      ox: Math.cos(baseAngle) * dist,
-      oy: Math.sin(baseAngle) * dist,
-      radius: maxRadius * (0.55 + Math.random() * 0.5),
-      colorIdx: i,
-    })
-  }
-  lobes.push({
-    ox: (Math.random() - 0.5) * maxRadius * 0.15,
-    oy: (Math.random() - 0.5) * maxRadius * 0.15,
-    radius: maxRadius * 0.45,
-    colorIdx: count,
-  })
-  return lobes
-}
+function makeGaseousCloud(W: number, H: number): GaseousCloud {
+  const big = Math.random() < 0.28
+  const radius = big ? 160 + Math.random() * 90 : 75 + Math.random() * 65
+  const count  = big ? 60 + Math.floor(Math.random() * 22) : 32 + Math.floor(Math.random() * 20)
 
-function makeNebulaFilaments(lobes: NebulaLobe[]): FilamentPath[] {
-  const filaments: FilamentPath[] = []
-  for (let i = 0; i < lobes.length; i++) {
-    for (let j = i + 1; j < lobes.length; j++) {
-      if (Math.random() > 0.65) continue
-      const a = lobes[i], b = lobes[j]
-      const mx = (a.ox + b.ox) / 2
-      const my = (a.oy + b.oy) / 2
-      const dx = b.ox - a.ox, dy = b.oy - a.oy
-      const len = Math.sqrt(dx * dx + dy * dy) || 1
-      const perp = (Math.random() - 0.5) * len * 0.55
-      const nx = (-dy / len) * perp, ny = (dx / len) * perp
-      filaments.push({
-        x1: a.ox, y1: a.oy,
-        x2: b.ox, y2: b.oy,
-        cp1x: mx + nx * 0.7 + (Math.random() - 0.5) * 15,
-        cp1y: my + ny * 0.7 + (Math.random() - 0.5) * 15,
-        cp2x: mx - nx * 0.4 + (Math.random() - 0.5) * 15,
-        cp2y: my - ny * 0.4 + (Math.random() - 0.5) * 15,
-      })
-    }
+  const edge = Math.floor(Math.random() * 4)
+  let pos: Vec2
+  const speed = 0.12 + Math.random() * 0.22
+  switch (edge) {
+    case 0:  pos = { x: Math.random() * W, y: -radius * 0.6 }; break
+    case 1:  pos = { x: W + radius * 0.6, y: Math.random() * H }; break
+    case 2:  pos = { x: Math.random() * W, y: H + radius * 0.6 }; break
+    default: pos = { x: -radius * 0.6, y: Math.random() * H }; break
   }
-  return filaments
+
+  const tx = W * (0.15 + Math.random() * 0.7)
+  const ty = H * (0.15 + Math.random() * 0.7)
+  const dx = tx - pos.x, dy = ty - pos.y
+  const len = Math.sqrt(dx * dx + dy * dy) || 1
+  const vel: Vec2 = { x: (dx / len) * speed, y: (dy / len) * speed }
+
+  const useAccent = Math.random() < 0.40
+  const colorRgb = useAccent
+    ? '__accent__'  
+    : CLOUD_STATIC_COLORS[Math.floor(Math.random() * CLOUD_STATIC_COLORS.length)]
+
+  const scaleX = 0.7 + Math.random() * 0.6
+  const scaleY = 0.7 + Math.random() * 0.6
+  const particles: CloudParticle[] = Array.from({ length: count }, () => {
+    const angle = Math.random() * Math.PI * 2
+    const dist  = Math.sqrt(Math.random()) * radius
+    return {
+      ox: Math.cos(angle) * dist * scaleX,
+      oy: Math.sin(angle) * dist * scaleY,
+      r: radius * (0.28 + Math.random() * 0.55),
+      baseOpacity: 0.028 + Math.random() * 0.062,
+      wobblePhase: Math.random() * Math.PI * 2,
+      wobbleSpeed: 0.002 + Math.random() * 0.007,
+      wobbleAmpX:  3 + Math.random() * 14,
+      wobbleAmpY:  3 + Math.random() * 14,
+    }
+  })
+
+  const driftFrames = big
+    ? 2800 + Math.floor(Math.random() * 1800)
+    : 1600 + Math.floor(Math.random() * 1200)
+
+  return {
+    id: idCounter++,
+    pos, vel, particles, radius,
+    globalOpacity: 0,
+    phase: 'fadein',
+    phaseT: 0,
+    driftFrames,
+    colorRgb,
+    accentFraction: useAccent ? 1 : 0,
+  }
 }
 
 function makeConstellationEdges(stars: { x: number; y: number }[]): [number, number][] {
@@ -514,6 +533,9 @@ export default function SpaceBackground() {
     let starEvents: StarEvent[] = []
     let lastStarEvent = -15000
     let lastConstellationSpawn = -35000
+
+    let clouds: GaseousCloud[] = []
+    let lastCloudSpawn = -18000
 
     let lastSpawn = 0
     const mousePos = { x: -9999, y: -9999 }
@@ -587,66 +609,139 @@ export default function SpaceBackground() {
       })
     }
 
-    function trySpawnStarEvent(timestamp: number) {
-      const interval = 18000 + Math.random() * 20000
-      if (timestamp - lastStarEvent < interval) return
-      lastStarEvent = timestamp
+    function drawGaseousCloud(cloud: GaseousCloud) {
+      if (cloud.globalOpacity <= 0.002) return
+      const accent = getAccent()
+      const accentRgb = accentToRgb(accent)
+      const rgb = cloud.colorRgb === '__accent__' ? accentRgb : cloud.colorRgb
 
-      if (Math.random() < 0.5 && stars.length >= 4) {
-        let attempts = 0
-        let i1 = 0, i2 = 1
-        while (attempts++ < 30) {
-          i1 = Math.floor(Math.random() * stars.length)
-          i2 = Math.floor(Math.random() * stars.length)
-          if (i2 === i1) continue
-          const dx = stars[i1].x - stars[i2].x
-          const dy = stars[i1].y - stars[i2].y
-          if (Math.sqrt(dx * dx + dy * dy) > 80) break
-        }
-        const s1 = stars[i1], s2 = stars[i2]
-        const cx = (s1.x + s2.x) / 2
-        const cy = (s1.y + s2.y) / 2
-        const dx1 = s1.x - cx, dy1 = s1.y - cy
-        const initialRadius = Math.sqrt(dx1 * dx1 + dy1 * dy1)
-        const initialAngle1 = Math.atan2(dy1, dx1)
-        s1.inEvent = true
-        s2.inEvent = true
+      ctx.save()
+      ctx.globalCompositeOperation = 'screen'
 
-        const ev: SupernovaEvent = {
-          type: 'supernova',
-          phase: 'approaching',
-          cx, cy,
-          s1x: s1.x, s1y: s1.y, s1idx: i1,
-          s2x: s2.x, s2y: s2.y, s2idx: i2,
-          ox1: s1.x, oy1: s1.y,
-          ox2: s2.x, oy2: s2.y,
-          initialRadius,
-          initialAngle1,
-          t: 0, radius: 0, flashOpacity: 0,
-        }
-        starEvents.push(ev)
+      cloud.particles.forEach(p => {
+        p.wobblePhase += p.wobbleSpeed
 
-      } else {
-        const cx = 140 + Math.random() * (W - 280)
-        const cy = 140 + Math.random() * (H - 280)
-        const maxR = 75 + Math.random() * 65
-        const lobes = makeNebulaLobes(maxR)
-        const filaments = makeNebulaFilaments(lobes)
+        const px = cloud.pos.x + p.ox + Math.sin(p.wobblePhase) * p.wobbleAmpX
+        const py = cloud.pos.y + p.oy + Math.cos(p.wobblePhase * 0.73) * p.wobbleAmpY
 
-        const ev: NebulaEvent = {
-          type: 'nebula',
-          phase: 'expanding',
-          cx, cy,
-          t: 0,
-          lobes,
-          maxRadius: maxR,
-          progress: 0,
-          flashOpacity: 0,
-          filaments,
-        }
-        starEvents.push(ev)
-      }
+        const a = p.baseOpacity * cloud.globalOpacity
+        if (a < 0.001) return
+
+        const g = ctx.createRadialGradient(px, py, 0, px, py, p.r)
+        g.addColorStop(0,    `rgba(${rgb},${Math.min(1, a * 3.2)})`)
+        g.addColorStop(0.35, `rgba(${rgb},${Math.min(1, a * 1.4)})`)
+        g.addColorStop(0.70, `rgba(${rgb},${Math.min(1, a * 0.45)})`)
+        g.addColorStop(1,    `rgba(${rgb},0)`)
+
+        ctx.fillStyle = g
+        ctx.beginPath()
+        ctx.arc(px, py, p.r, 0, Math.PI * 2)
+        ctx.fill()
+      })
+
+      ctx.restore()
     }
+
+    function trySpawnCloud(timestamp: number) {
+      // spawn every 28-34 seconds, max 2 on screen
+      const interval = 20000 + Math.random() * 14000
+      if (timestamp - lastCloudSpawn < interval) return
+      if (clouds.length >= 2) return
+      lastCloudSpawn = timestamp
+      clouds.push(makeGaseousCloud(W, H))
+    }
+
+    const FADE_IN_FRAMES  = 200
+    const FADE_OUT_FRAMES = 240
+
+    function updateClouds() {
+      clouds = clouds.filter(cloud => {
+        if (cloud.phase === 'fadein') {
+          cloud.phaseT += 1 / FADE_IN_FRAMES
+          cloud.globalOpacity = Math.min(1, cloud.phaseT)
+          if (cloud.phaseT >= 1) { cloud.phase = 'drifting'; cloud.phaseT = 0 }
+
+        } else if (cloud.phase === 'drifting') {
+          cloud.phaseT++
+          if (cloud.phaseT >= cloud.driftFrames) { cloud.phase = 'fadeout'; cloud.phaseT = 0 }
+
+        } else {
+          cloud.phaseT += 1 / FADE_OUT_FRAMES
+          cloud.globalOpacity = Math.max(0, 1 - cloud.phaseT)
+          if (cloud.phaseT >= 1) return false
+        }
+
+        blackHoles.forEach((bh, i) => {
+          if (i === 1 && cursorBHRef.current) return
+          const dx = bh.pos.x - cloud.pos.x
+          const dy = bh.pos.y - cloud.pos.y
+          const distSq = Math.max(dx * dx + dy * dy, 1)
+          const dist   = Math.sqrt(distSq)
+          const force  = Math.min(0.0008, (G * BLACK_HOLE_MASS * 0.00012 * bhStrengthRef.current) / distSq)
+          cloud.vel.x += (dx / dist) * force
+          cloud.vel.y += (dy / dist) * force
+        })
+
+        const spd = Math.sqrt(cloud.vel.x ** 2 + cloud.vel.y ** 2)
+        const MAX_CLOUD_SPEED = 0.45
+        if (spd > MAX_CLOUD_SPEED) {
+          cloud.vel.x = (cloud.vel.x / spd) * MAX_CLOUD_SPEED
+          cloud.vel.y = (cloud.vel.y / spd) * MAX_CLOUD_SPEED
+        }
+
+        cloud.pos.x += cloud.vel.x
+        cloud.pos.y += cloud.vel.y
+
+        const margin = cloud.radius * 1.2 + DESPAWN_MARGIN
+        if (
+          cloud.pos.x < -margin || cloud.pos.x > W + margin ||
+          cloud.pos.y < -margin || cloud.pos.y > H + margin
+        ) return false
+
+        drawGaseousCloud(cloud)
+        return true
+      })
+    }
+
+    // function trySpawnStarEvent(timestamp: number) {
+    //   const interval = 18000 + Math.random() * 20000
+    //   if (timestamp - lastStarEvent < interval) return
+    //   if (stars.length < 4) return
+    //   lastStarEvent = timestamp
+
+    //   let attempts = 0
+    //   let i1 = 0, i2 = 1
+    //   while (attempts++ < 30) {
+    //     i1 = Math.floor(Math.random() * stars.length)
+    //     i2 = Math.floor(Math.random() * stars.length)
+    //     if (i2 === i1) continue
+    //     const dx = stars[i1].x - stars[i2].x
+    //     const dy = stars[i1].y - stars[i2].y
+    //     if (Math.sqrt(dx * dx + dy * dy) > 80) break
+    //   }
+    //   const s1 = stars[i1], s2 = stars[i2]
+    //   const cx = (s1.x + s2.x) / 2
+    //   const cy = (s1.y + s2.y) / 2
+    //   const dx1 = s1.x - cx, dy1 = s1.y - cy
+    //   const initialRadius = Math.sqrt(dx1 * dx1 + dy1 * dy1)
+    //   const initialAngle1 = Math.atan2(dy1, dx1)
+    //   s1.inEvent = true
+    //   s2.inEvent = true
+
+    //   const ev: SupernovaEvent = {
+    //     type: 'supernova',
+    //     phase: 'approaching',
+    //     cx, cy,
+    //     s1x: s1.x, s1y: s1.y, s1idx: i1,
+    //     s2x: s2.x, s2y: s2.y, s2idx: i2,
+    //     ox1: s1.x, oy1: s1.y,
+    //     ox2: s2.x, oy2: s2.y,
+    //     initialRadius,
+    //     initialAngle1,
+    //     t: 0, radius: 0, flashOpacity: 0,
+    //   }
+    //   starEvents.push(ev)
+    // }
 
     function trySpawnConstellation(timestamp: number) {
       const interval = 32000 + Math.random() * 28000
@@ -759,96 +854,6 @@ export default function SpaceBackground() {
       }
     }
 
-    function drawNebula(ev: NebulaEvent) {
-      const accent = getAccent()
-      const rgb = accentToRgb(accent)
-      const { cx, cy } = ev
-
-      const lobeRgbs = [rgb, '70,130,255', '180,80,255', '255,170,70', '60,220,180']
-
-      let scale = ev.progress
-      let alpha = ev.progress
-
-      if (ev.phase === 'blooming') {
-        scale = 1.0 + Math.sin(ev.t * Math.PI * 1.8) * 0.05
-        alpha = 1.0
-      } else if (ev.phase === 'collapsing') {
-        scale = Math.max(0, 1 - ev.progress * 0.94)
-        alpha = 1 - ev.progress * 0.65
-      } else if (ev.phase === 'birth') {
-        scale = 0.04
-        alpha = 0
-      }
-
-      if (alpha <= 0 && ev.phase !== 'birth') return
-
-      ev.lobes.forEach((lobe) => {
-        const lx = cx + lobe.ox * scale
-        const ly = cy + lobe.oy * scale
-        const lr = lobe.radius * scale
-        if (lr <= 1) return
-
-        const lobeRgb = lobeRgbs[lobe.colorIdx % lobeRgbs.length]
-        ctx.save()
-        const g = ctx.createRadialGradient(lx, ly, 0, lx, ly, lr)
-        g.addColorStop(0,    `rgba(${lobeRgb},${alpha * 0.30})`)
-        g.addColorStop(0.30, `rgba(${lobeRgb},${alpha * 0.16})`)
-        g.addColorStop(0.65, `rgba(${lobeRgb},${alpha * 0.06})`)
-        g.addColorStop(1,    'rgba(0,0,0,0)')
-        ctx.fillStyle = g
-        ctx.beginPath()
-        ctx.arc(lx, ly, lr, 0, Math.PI * 2)
-        ctx.fill()
-        ctx.restore()
-      })
-
-      if (scale > 0.05) {
-        ctx.save()
-        ctx.globalAlpha = alpha * 0.11
-        ctx.strokeStyle = accent
-        ctx.lineWidth = 0.7
-        ev.filaments.forEach(f => {
-          ctx.beginPath()
-          ctx.moveTo(cx + f.x1 * scale, cy + f.y1 * scale)
-          ctx.bezierCurveTo(
-            cx + f.cp1x * scale, cy + f.cp1y * scale,
-            cx + f.cp2x * scale, cy + f.cp2y * scale,
-            cx + f.x2 * scale,   cy + f.y2 * scale,
-          )
-          ctx.stroke()
-        })
-        ctx.restore()
-      }
-
-      const coreR = Math.max(1, (8 + ev.progress * 6) * Math.max(0.08, scale))
-      ctx.save()
-      const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR * 6)
-      cg.addColorStop(0,   `rgba(255,255,255,${alpha * 0.95})`)
-      cg.addColorStop(0.18,`rgba(${rgb},${alpha * 0.65})`)
-      cg.addColorStop(0.5, `rgba(${rgb},${alpha * 0.18})`)
-      cg.addColorStop(1,   'rgba(0,0,0,0)')
-      ctx.fillStyle = cg
-      ctx.beginPath()
-      ctx.arc(cx, cy, coreR * 6, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.restore()
-
-      if (ev.phase === 'birth' && ev.flashOpacity > 0) {
-        ctx.save()
-        const r = 8 + ev.flashOpacity * 60
-        const fg = ctx.createRadialGradient(cx, cy, 0, cx, cy, r)
-        fg.addColorStop(0,    `rgba(255,255,255,${ev.flashOpacity})`)
-        fg.addColorStop(0.2,  `rgba(${rgb},${ev.flashOpacity * 0.85})`)
-        fg.addColorStop(0.55, `rgba(${rgb},${ev.flashOpacity * 0.3})`)
-        fg.addColorStop(1,    'rgba(0,0,0,0)')
-        ctx.fillStyle = fg
-        ctx.beginPath()
-        ctx.arc(cx, cy, r, 0, Math.PI * 2)
-        ctx.fill()
-        ctx.restore()
-      }
-    }
-
     function drawConstellation(ev: ConstellationEvent) {
       const accent = getAccent()
       const { starPositions, edges, opacity } = ev
@@ -904,9 +909,9 @@ export default function SpaceBackground() {
         if (ev.type === 'supernova') {
           if (ev.phase === 'approaching') {
             ev.t += 1 / 230
-            const spiralT = ev.t * ev.t  // ease-in: accelerates toward collision
+            const spiralT = ev.t * ev.t
             const currentRadius = ev.initialRadius * (1 - spiralT)
-            const currentAngle = ev.initialAngle1 + spiralT * Math.PI * 3.5  // ~1.75 orbits
+            const currentAngle = ev.initialAngle1 + spiralT * Math.PI * 3.5
 
             ev.s1x = ev.cx + Math.cos(currentAngle) * currentRadius
             ev.s1y = ev.cy + Math.sin(currentAngle) * currentRadius
@@ -942,47 +947,6 @@ export default function SpaceBackground() {
             }
           }
           drawSupernova(ev)
-          return ev.phase !== 'done'
-
-        } else if (ev.type === 'nebula') {
-          if (ev.phase === 'expanding') {
-            ev.t += 1 / 125
-            ev.progress = ev.t
-            if (ev.t >= 1) { ev.phase = 'blooming'; ev.t = 0; ev.progress = 1 }
-
-          } else if (ev.phase === 'blooming') {
-            ev.t += 1 / 250
-            ev.progress = 1
-            if (ev.t >= 1) { ev.phase = 'collapsing'; ev.t = 0; ev.progress = 1 }
-
-          } else if (ev.phase === 'collapsing') {
-            ev.t += 1 / 140
-            ev.progress = ev.t
-            if (ev.t >= 1) { ev.phase = 'birth'; ev.t = 0; ev.progress = 0; ev.flashOpacity = 0 }
-
-          } else if (ev.phase === 'birth') {
-            ev.t += 1 / 42
-            ev.flashOpacity = ev.t < 0.3
-              ? ev.t / 0.3
-              : Math.pow(1 - (ev.t - 0.3) / 0.7, 1.5)
-            ev.progress = ev.t
-            if (ev.t >= 1) {
-              stars.push({
-                x: ev.cx, y: ev.cy,
-                size: 1.4 + Math.random() * 0.8,
-                opacity: 0,
-                baseOpacity: 0.5 + Math.random() * 0.35,
-                twinkleSpeed: 0.006 + Math.random() * 0.012,
-                twinklePhase: 0,
-                vx: (Math.random() - 0.5) * 0.035,
-                vy: (Math.random() - 0.5) * 0.035,
-                warm: Math.random() < 0.4,
-                inEvent: false,
-              })
-              ev.phase = 'done'
-            }
-          }
-          drawNebula(ev)
           return ev.phase !== 'done'
 
         } else {
@@ -1240,7 +1204,10 @@ export default function SpaceBackground() {
 
       drawStars()
 
-      trySpawnStarEvent(timestamp)
+      trySpawnCloud(timestamp)
+      updateClouds()
+
+      // trySpawnStarEvent(timestamp)
       trySpawnConstellation(timestamp)
       updateStarEvents(timestamp)
 
