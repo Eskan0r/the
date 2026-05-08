@@ -13,10 +13,13 @@ interface AuthStore {
   profile: Profile | null
   loading: boolean
   init: () => Promise<void>
-  signIn: (email: string, password: string) => Promise<string | null>
-  signUp: (email: string, password: string, username: string) => Promise<string | null>
+  signIn: (username: string, password: string) => Promise<string | null>
+  signUp: (username: string, password: string) => Promise<string | null>
   signOut: () => Promise<void>
 }
+
+// Users never see this email — it's just how Supabase auth works internally
+const toEmail = (username: string) => `${username.toLowerCase().trim()}@market.internal`
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
   user: null,
@@ -33,7 +36,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({ loading: false })
     }
 
-    supabase.auth.onAuthStateChange(async (_event, session) => {
+    // Track subscription so it can be cleaned up if init() is ever called again
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         const profile = await fetchProfile(session.user.id)
         set({ user: session.user, profile, loading: false })
@@ -41,59 +45,61 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         set({ user: null, profile: null, loading: false })
       }
     })
+
+    // Expose cleanup — call window.__authUnsub?.() before re-init if needed
+    ;(window as any).__authUnsub = () => subscription.unsubscribe()
   },
 
-  signIn: async (email, password) => {
-    console.log('[AuthStore] Attempting sign in for email:', email);
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  signIn: async (username, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: toEmail(username),
+      password,
+    })
     if (error) {
-      console.error('[AuthStore] Sign in error:', error.message);
-      return error.message;
+      // Supabase returns "Invalid login credentials" for both bad username and bad password.
+      // Return a friendlier message.
+      return 'Invalid username or password'
     }
     const profile = await fetchProfile(data.user.id)
-    console.log('[AuthStore] Sign in successful for user:', profile?.username);
     set({ user: data.user, profile })
     return null
   },
 
-  signUp: async (email, password, username) => {
-    console.log('[AuthStore] Attempting sign up for email:', email, 'username:', username);
-    // validation
+  signUp: async (username, password) => {
+    const trimmed = username.trim()
+    if (!trimmed) return 'Username required'
+    if (trimmed.length < 3) return 'Username must be at least 3 characters'
+    if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) return 'Username can only contain letters, numbers, and underscores'
+
+    // Check if username is taken
     const { data: existing } = await supabase
       .from('profiles')
       .select('username')
-      .eq('username', username)
-      .single()
+      .eq('username', trimmed)
+      .maybeSingle()
 
-    if (existing) {
-      console.error('[AuthStore] Sign up failed: Username already taken');
-      return 'Username already taken';
-    }
+    if (existing) return 'Username already taken'
 
-    const { data, error } = await supabase.auth.signUp({ email, password })
-    if (error) {
-      console.error('[AuthStore] Sign up error:', error.message);
-      return error.message;
-    }
-    if (!data.user) {
-      console.error('[AuthStore] Sign up failed: No user data');
-      return 'Signup failed';
-    }
+    const { data, error } = await supabase.auth.signUp({
+      email: toEmail(trimmed),
+      password,
+    })
+    if (error) return error.message
+    if (!data.user) return 'Signup failed'
 
-    await supabase
+    // upsert rather than update — safe whether or not a trigger pre-created the row
+    const { error: profileError } = await supabase
       .from('profiles')
-      .update({ username })
-      .eq('id', data.user.id)
+      .upsert({ id: data.user.id, username: trimmed })
+
+    if (profileError) return profileError.message
 
     const profile = await fetchProfile(data.user.id)
-    console.log('[AuthStore] Sign up successful for user:', profile?.username);
     set({ user: data.user, profile })
     return null
   },
 
   signOut: async () => {
-    const { profile } = get();
-    console.log('[AuthStore] Signing out user:', profile?.username);
     await supabase.auth.signOut()
     set({ user: null, profile: null })
   },

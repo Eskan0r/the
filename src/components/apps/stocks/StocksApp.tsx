@@ -38,25 +38,24 @@ export default function StocksApp({ windowId: _windowId }: { windowId: string })
   return <StocksMain />
 }
 
+// ─────────────────────────────────────────────
+// Auth
+// ─────────────────────────────────────────────
+
 function StocksLogin() {
   const { signIn, signUp } = useAuthStore()
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async () => {
     setError(null)
     setLoading(true)
-    let err: string | null = null
-    if (mode === 'signin') {
-      err = await signIn(email, password)
-    } else {
-      if (!username.trim()) { setError('Username required'); setLoading(false); return }
-      err = await signUp(email, password, username.trim())
-    }
+    const err = mode === 'signin'
+      ? await signIn(username, password)
+      : await signUp(username, password)
     if (err) setError(err)
     setLoading(false)
   }
@@ -79,10 +78,7 @@ function StocksLogin() {
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {mode === 'signup' && (
-            <LoginField label="username" value={username} onChange={setUsername} onKeyDown={onKey} autoFocus />
-          )}
-          <LoginField label="email" type="email" value={email} onChange={setEmail} onKeyDown={onKey} autoFocus={mode === 'signin'} />
+          <LoginField label="username" value={username} onChange={setUsername} onKeyDown={onKey} autoFocus />
           <LoginField label="password" type="password" value={password} onChange={setPassword} onKeyDown={onKey} />
         </div>
         {error && <div style={{ color: 'var(--text-error)', fontSize: 11, marginTop: 10 }}>{error}</div>}
@@ -133,6 +129,10 @@ function LoginField({ label, value, onChange, onKeyDown, type = 'text', autoFocu
   )
 }
 
+// ─────────────────────────────────────────────
+// Sparkline
+// ─────────────────────────────────────────────
+
 function Sparkline({ data, width = 80, height = 28 }: { data: number[]; width?: number; height?: number }) {
   if (data.length < 2) return <div style={{ width, height }} />
 
@@ -152,6 +152,7 @@ function Sparkline({ data, width = 80, height = 28 }: { data: number[]; width?: 
 
   const firstX = pad
   const lastX = width - pad
+  // Fix: use height - pad for the bottom so the fill polygon reaches the bottom edge
   const bottomY = height - pad
   const fillPoints = `${firstX},${bottomY} ${points} ${lastX},${bottomY}`
 
@@ -162,6 +163,10 @@ function Sparkline({ data, width = 80, height = 28 }: { data: number[]; width?: 
     </svg>
   )
 }
+
+// ─────────────────────────────────────────────
+// Chart modal
+// ─────────────────────────────────────────────
 
 function ChartModal({ ticker, name, onClose }: { ticker: string; name: string; onClose: () => void }) {
   const [history, setHistory] = useState<PricePoint[]>([])
@@ -212,8 +217,9 @@ function ChartModal({ ticker, name, onClose }: { ticker: string; name: string; o
   }
 
   const linePoints = prices.map((v, i) => { const p = toSvg(v, i); return `${p.x},${p.y}` }).join(' ')
+  // Fix: bottom of fill polygon should sit at H (not H - pad) to reach the axis line
   const fillPoints = prices.length >= 2
-    ? `${toSvg(prices[0], 0).x},${H - pad} ${linePoints} ${toSvg(prices[prices.length - 1], prices.length - 1).x},${H - pad}`
+    ? `${toSvg(prices[0], 0).x},${H} ${linePoints} ${toSvg(prices[prices.length - 1], prices.length - 1).x},${H}`
     : ''
 
   const timeLabels: { label: string; x: number }[] = []
@@ -266,7 +272,7 @@ function ChartModal({ ticker, name, onClose }: { ticker: string; name: string; o
             not enough data yet — check back in a moment
           </div>
         ) : (
-          <svg width="100%" viewBox={`0 0 ${W} ${H + 20}`} style={{ display: 'block' }}>
+          <svg width="100%" viewBox={`0 0 ${W} ${H + 24}`} style={{ display: 'block' }}>
             <polygon
               points={fillPoints}
               fill={isUp ? 'rgba(0,255,136,0.06)' : 'rgba(255,85,85,0.06)'}
@@ -287,10 +293,10 @@ function ChartModal({ ticker, name, onClose }: { ticker: string; name: string; o
             })()}
 
             <text x={pad} y={pad - 2} fontSize="9" fill="var(--text-secondary)" fontFamily="JetBrains Mono">${max.toFixed(2)}</text>
-            <text x={pad} y={H - pad + 2} fontSize="9" fill="var(--text-secondary)" fontFamily="JetBrains Mono">${min.toFixed(2)}</text>
+            <text x={pad} y={H - 2} fontSize="9" fill="var(--text-secondary)" fontFamily="JetBrains Mono">${min.toFixed(2)}</text>
 
             {timeLabels.map((l, i) => (
-              <text key={i} x={l.x} y={H + 14} fontSize="9" fill="var(--text-secondary)"
+              <text key={i} x={l.x} y={H + 16} fontSize="9" fill="var(--text-secondary)"
                 fontFamily="JetBrains Mono" textAnchor="middle">{l.label}</text>
             ))}
           </svg>
@@ -304,10 +310,15 @@ function ChartModal({ ticker, name, onClose }: { ticker: string; name: string; o
   )
 }
 
+// ─────────────────────────────────────────────
+// Main app
+// ─────────────────────────────────────────────
+
 function StocksMain() {
   const { user, profile } = useAuthStore()
   const [tab, setTab] = useState<Tab>('market')
   const [stocks, setStocks] = useState<Stock[]>([])
+  // Fix: keep a consistent cap of 120 points (2 hours at 60s intervals)
   const [priceHistory, setPriceHistory] = useState<Record<string, number[]>>({})
   const [holdings, setHoldings] = useState<Holding[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -317,27 +328,46 @@ function StocksMain() {
   const [tradeError, setTradeError] = useState<string | null>(null)
   const [tradeLoading, setTradeLoading] = useState(false)
   const [chartTicker, setChartTicker] = useState<string | null>(null)
+  const [historySeeded, setHistorySeeded] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
-    supabase.from('stocks').select('*').order('ticker')
-      .then(({ data }) => { if (data) setStocks(data) })
+    // Load stocks first, then seed history gaps, then start live updates
+    async function bootstrap() {
+      const { data: stockData } = await supabase
+        .from('stocks')
+        .select('*')
+        .order('ticker')
+      if (stockData) setStocks(stockData)
 
-    supabase
-      .from('price_history')
-      .select('ticker, price, recorded_at')
-      .order('recorded_at', { ascending: false })
-      .limit(480)
-      .then(({ data }) => {
-        if (!data) return
+      // Seed any missing price history for the past 2 hours.
+      // The RPC is idempotent — it only inserts points that don't already exist.
+      await supabase.rpc('seed_missing_price_history')
+      setHistorySeeded(true)
+
+      // Load sparkline data (120 points = ~2 hrs at 60s intervals, or ~1 hr at 30s)
+      const { data: histData } = await supabase
+        .from('price_history')
+        .select('ticker, price, recorded_at')
+        .order('recorded_at', { ascending: false })
+        .limit(120 * 20) // fetch enough for all tickers; group client-side
+      if (histData) {
         const grouped: Record<string, number[]> = {}
-        for (const row of data) {
+        for (const row of histData) {
           if (!grouped[row.ticker]) grouped[row.ticker] = []
           grouped[row.ticker].unshift(row.price)
         }
+        // Cap each ticker to 120 most-recent points for sparklines
+        for (const ticker of Object.keys(grouped)) {
+          grouped[ticker] = grouped[ticker].slice(-120)
+        }
         setPriceHistory(grouped)
-      })
+      }
+    }
 
+    bootstrap()
+
+    // Poll for live price updates every 3s
     intervalRef.current = setInterval(async () => {
       await supabase.rpc('update_stock_prices')
       const { data } = await supabase.from('stocks').select('*').order('ticker')
@@ -362,7 +392,8 @@ function StocksMain() {
           const row = payload.new as { ticker: string; price: number }
           setPriceHistory((prev) => ({
             ...prev,
-            [row.ticker]: [...(prev[row.ticker] ?? []).slice(-59), row.price],
+            // Fix: consistent cap of 120 to match initial load
+            [row.ticker]: [...(prev[row.ticker] ?? []).slice(-119), row.price],
           }))
         }
       )
@@ -457,6 +488,11 @@ function StocksMain() {
         <div style={{ color: 'var(--text-secondary)', fontSize: 11 }}>
           {profile?.username}
           {profile?.is_admin && <span style={{ color: 'var(--accent)', marginLeft: 6 }}>[admin]</span>}
+          {!historySeeded && (
+            <span style={{ color: 'var(--text-secondary)', marginLeft: 8, fontSize: 10 }}>
+              seeding history...
+            </span>
+          )}
         </div>
       </div>
 
@@ -692,6 +728,10 @@ function StocksMain() {
     </div>
   )
 }
+
+// ─────────────────────────────────────────────
+// Shared UI helpers
+// ─────────────────────────────────────────────
 
 function Stat({ label, value, accent, warn }: { label: string; value: string; accent?: boolean; warn?: boolean }) {
   return (
