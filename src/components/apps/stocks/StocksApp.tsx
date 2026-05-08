@@ -173,10 +173,13 @@ function ChartModal({ ticker, name, onClose }: { ticker: string; name: string; o
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+
     supabase
       .from('price_history')
       .select('price, recorded_at')
       .eq('ticker', ticker)
+      .gte('recorded_at', twoHoursAgo)
       .order('recorded_at', { ascending: true })
       .limit(400)
       .then(({ data }) => {
