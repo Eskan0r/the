@@ -1,7 +1,7 @@
 import { useDesktopStore } from '../../store/desktopStore'
 
 export default function GravityControls() {
-  const { cursorBlackHole, bhStrength, setBhStrength } = useDesktopStore()
+  const { cursorBlackHole, bhStrength, setBhStrength, bhSize, setBhSize } = useDesktopStore()
   if (!cursorBlackHole) return null
 
   return (
@@ -76,6 +76,64 @@ export default function GravityControls() {
               border: `1px solid ${bhStrength === v ? 'var(--accent)' : 'var(--border)'}`,
               borderRadius: 3,
               color: bhStrength === v ? '#000' : 'var(--text-secondary)',
+              fontFamily: 'inherit',
+              fontSize: 10,
+              cursor: 'pointer',
+              transition: 'all 0.1s',
+            }}
+          >
+            {v}x
+          </button>
+        ))}
+      </div>
+
+      <div style={{ marginBottom: 8, marginTop: 12 }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          color: 'var(--text-secondary)',
+          marginBottom: 6,
+        }}>
+          <span>size</span>
+          <span style={{ color: 'var(--text-primary)' }}>{bhSize.toFixed(2)}x</span>
+        </div>
+        <input
+          type="range"
+          min={0.5}
+          max={3}
+          step={0.1}
+          value={bhSize}
+          onChange={(e) => setBhSize(parseFloat(e.target.value))}
+          style={{
+            width: '100%',
+            accentColor: 'var(--accent)',
+            cursor: 'pointer',
+          }}
+        />
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          color: '#444',
+          fontSize: 9,
+          marginTop: 3,
+        }}>
+          <span>0.5x</span>
+          <span>3x</span>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+        {[0.5, 1, 1.5, 2.5].map((v) => (
+          <button
+            key={v}
+            onClick={() => setBhSize(v)}
+            style={{
+              flex: 1,
+              height: 22,
+              background: bhSize === v ? 'var(--accent)' : 'transparent',
+              border: `1px solid ${bhSize === v ? 'var(--accent)' : 'var(--border)'}`,
+              borderRadius: 3,
+              color: bhSize === v ? '#000' : 'var(--text-secondary)',
               fontFamily: 'inherit',
               fontSize: 10,
               cursor: 'pointer',

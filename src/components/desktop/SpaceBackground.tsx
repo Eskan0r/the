@@ -504,8 +504,11 @@ export default function SpaceBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const cursorBlackHole = useDesktopStore((s) => s.cursorBlackHole)
   const bhStrength = useDesktopStore((s) => s.bhStrength)
+  const bhSize = useDesktopStore((s) => s.bhSize)
   const bhStrengthRef = useRef(bhStrength)
+  const bhSizeRef = useRef(bhSize)
   useEffect(() => { bhStrengthRef.current = bhStrength }, [bhStrength])
+  useEffect(() => { bhSizeRef.current = bhSize }, [bhSize])
   const cursorBHRef = useRef(cursorBlackHole)
   useEffect(() => { cursorBHRef.current = cursorBlackHole }, [cursorBlackHole])
 
@@ -1055,18 +1058,19 @@ export default function SpaceBackground() {
 
     function drawBlackHole(bh: BlackHole) {
       const accent = getAccent()
+      const scaledRadius = bh.radius * bhSizeRef.current
       ctx.save()
       ctx.beginPath()
-      ctx.arc(bh.pos.x, bh.pos.y, bh.radius, 0, Math.PI * 2)
+      ctx.arc(bh.pos.x, bh.pos.y, scaledRadius, 0, Math.PI * 2)
       ctx.fillStyle = '#050505'
       ctx.fill()
       ctx.restore()
       ctx.save()
       ctx.strokeStyle = accent
       const rings = [
-        { r: bh.radius + 5,  gap: 0.4, op: 0.55, lw: 1.2 },
-        { r: bh.radius + 11, gap: 0.7, op: 0.3,  lw: 0.8 },
-        { r: bh.radius + 20, gap: 1.1, op: 0.15, lw: 0.6 },
+        { r: scaledRadius + 5,  gap: 0.4, op: 0.55, lw: 1.2 },
+        { r: scaledRadius + 11, gap: 0.7, op: 0.3,  lw: 0.8 },
+        { r: scaledRadius + 20, gap: 1.1, op: 0.15, lw: 0.6 },
       ]
       rings.forEach(({ r, gap, op, lw }) => {
         ctx.globalAlpha = op
@@ -1126,7 +1130,8 @@ export default function SpaceBackground() {
         const distSq = dx * dx + dy * dy
         const dist = Math.sqrt(distSq)
         if (dist < distMin) distMin = dist
-        if (dist < bh.radius + 2) { obj.swallowed = true; return }
+        const scaledRadius = bh.radius * bhSizeRef.current
+        if (dist < scaledRadius + 2) { obj.swallowed = true; return }
         const force = (G * BLACK_HOLE_MASS * bhStrengthRef.current) / distSq
         obj.vel.x += (dx / dist) * force
         obj.vel.y += (dy / dist) * force
