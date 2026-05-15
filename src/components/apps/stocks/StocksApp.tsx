@@ -175,17 +175,20 @@ function ChartModal({ ticker, name, onClose }: { ticker: string; name: string; o
   useEffect(() => {
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
 
-    supabase
-      .from('price_history')
-      .select('price, recorded_at')
-      .eq('ticker', ticker)
-      .gte('recorded_at', twoHoursAgo)
-      .order('recorded_at', { ascending: true })
-      .limit(400)
-      .then(({ data }) => {
-        if (data) setHistory(data)
+    ;(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('price_history')
+          .select('price, recorded_at')
+          .eq('ticker', ticker)
+          .gte('recorded_at', twoHoursAgo)
+          .order('recorded_at', { ascending: true })
+          .limit(400)
+        if (data && !error) setHistory(data)
+      } finally {
         setLoading(false)
-      })
+      }
+    })()
 
     const channel = supabase
       .channel(`chart-${ticker}`)
@@ -298,10 +301,19 @@ function ChartModal({ ticker, name, onClose }: { ticker: string; name: string; o
             <text x={pad} y={pad - 2} fontSize="9" fill="var(--text-secondary)" fontFamily="JetBrains Mono">${max.toFixed(2)}</text>
             <text x={pad} y={H - 2} fontSize="9" fill="var(--text-secondary)" fontFamily="JetBrains Mono">${min.toFixed(2)}</text>
 
-            {timeLabels.map((l, i) => (
-              <text key={i} x={l.x} y={H + 16} fontSize="9" fill="var(--text-secondary)"
-                fontFamily="JetBrains Mono" textAnchor="middle">{l.label}</text>
-            ))}
+          {timeLabels.map((l, i) => (
+            <text
+              key={i}
+              x={l.x}
+              y={H + 16}
+              fontSize="9"
+              fill="var(--text-secondary)"
+              fontFamily="JetBrains Mono"
+              textAnchor={i === 0 ? 'start' : i === timeLabels.length - 1 ? 'end' : 'middle'}
+            >
+              {l.label}
+            </text>
+          ))}
           </svg>
         )}
 
@@ -678,18 +690,39 @@ function StocksMain() {
                 owned: {holdings.find(h => h.ticker === tradeTarget.ticker)?.shares.toFixed(4) ?? 0} shares
               </div>
             )}
-            <input
-              type="number" value={tradeShares} autoFocus min="0" step="0.0001"
-              onChange={(e) => setTradeShares(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') executeTrade(); if (e.key === 'Escape') setTradeTarget(null) }}
-              placeholder="shares"
-              style={{
-                width: '100%', height: 32, background: 'var(--bg-terminal)',
-                border: '1px solid var(--accent)', borderRadius: 3,
-                color: 'var(--text-primary)', fontFamily: 'inherit',
-                fontSize: 12, padding: '0 10px', outline: 'none',
-              }}
-            />
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <button
+                onClick={() => setTradeShares(v => String(Math.max(0, (parseFloat(v) || 0) - 1)))}
+                style={{
+                  width: 30, height: 32, background: 'var(--bg-terminal)',
+                  border: '1px solid var(--accent)', borderRight: 'none',
+                  borderRadius: '3px 0 0 3px', color: 'var(--accent)',
+                  fontFamily: 'inherit', fontSize: 16, cursor: 'pointer', flexShrink: 0,
+                }}
+              >−</button>
+              <input
+                type="number" value={tradeShares} autoFocus min="0" step="any"
+                onChange={(e) => setTradeShares(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') executeTrade(); if (e.key === 'Escape') setTradeTarget(null) }}
+                placeholder="shares"
+                style={{
+                  flex: 1, height: 32, background: 'var(--bg-terminal)',
+                  border: '1px solid var(--accent)', borderLeft: 'none', borderRight: 'none',
+                  color: 'var(--text-primary)', fontFamily: 'inherit',
+                  fontSize: 12, padding: '0 8px', outline: 'none',
+                  MozAppearance: 'textfield',
+                } as React.CSSProperties}
+              />
+              <button
+                onClick={() => setTradeShares(v => String((parseFloat(v) || 0) + 1))}
+                style={{
+                  width: 30, height: 32, background: 'var(--bg-terminal)',
+                  border: '1px solid var(--accent)', borderLeft: 'none',
+                  borderRadius: '0 3px 3px 0', color: 'var(--accent)',
+                  fontFamily: 'inherit', fontSize: 16, cursor: 'pointer', flexShrink: 0,
+                }}
+              >+</button>
+            </div>
             {tradeShares && !isNaN(parseFloat(tradeShares)) && (
               <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 8 }}>
                 total: ${(parseFloat(tradeShares) * (stocks.find(s => s.ticker === tradeTarget.ticker)?.current_price ?? 0)).toFixed(2)}

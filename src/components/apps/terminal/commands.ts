@@ -369,14 +369,76 @@ export const COMMANDS: Record<string, CommandHandler> = {
     }
     if (file === 'resume.pdf') {
       return [
-        { text: '[binary file — not renderable here]', type: 'warn' },
-        { text: 'Hint: a downloadable version is coming. Check back soon.', type: 'secondary' },
+        { text: `┌──────────────────────────────────────────────────────────┐`, type: 'accent' },
+        { text: `│                 RONAK CHAVVA                        │`, type: 'accent' },
+        { text: `│    ronakch8@gmail.com  ·  LinkedIn  ·  US Citizen   │`, type: 'secondary' },
+        { text: `└──────────────────────────────────────────────────────────┘`, type: 'accent' },
+        { text: ``, type: 'default' },
+
+        { text: `EDUCATION`, type: 'accent' },
+        { text: `  University of Texas at Dallas                  May 2027`, type: 'default' },
+        { text: `  B.S. Computer Science  ·  GPA: 4.0 / 4.0`, type: 'default' },
+        { text: ``, type: 'default' },
+
+        { text: `EXPERIENCE`, type: 'accent' },
+        { text: `  State Farm - Software Engineer                  2023 - Present`, type: 'default' },
+        { text: `  -- Full stack platform in React, TypeScript, Terraform for firewall config mgmt`, type: 'secondary' },
+        { text: `  -- Facilitated $400M infra migration from TP2 to AWS ROSA`, type: 'secondary' },
+        { text: `  -- Automated manual workflows; reduced engineering overhead 80%`, type: 'secondary' },
+        { text: ``, type: 'default' },
+        { text: `  ACM · Binary Search Gang - Lead Developer       2025 - Present`, type: 'default' },
+        { text: `  -- Architected Chrome extension with real time party chat + stats for LeetCode`, type: 'secondary' },
+        { text: `  -- Designed end to end system architecture, extension messaging, data persistence`, type: 'secondary' },
+        { text: `  -- Debugged race conditions and state sync failures across extension/backend boundary`, type: 'secondary' },
+        { text: ``, type: 'default' },
+
+        { text: `PROJECTS`, type: 'accent' },
+        { text: `  Binary Search Gang (BSG)     Node.js · PostgreSQL · Redis · Kafka · WebSockets`, type: 'default' },
+        { text: `  -- Stateful distributed backend: sessions, rooms, live submissions, leaderboards`, type: 'secondary' },
+        { text: `  -- 20% read latency reduction via Redis caching of hot query paths`, type: 'secondary' },
+        { text: `  -- Kafka event driven workflows for decoupled interservice state propagation`, type: 'secondary' },
+        { text: ``, type: 'default' },
+        { text: `  Firewall Dashboard            React · TypeScript · AWS Lambda · API Gateway · Terraform`, type: 'default' },
+        { text: `  -- Serverless platform to visualize and manage enterprise firewall rules`, type: 'secondary' },
+        { text: `  -- Lambda + API Gateway + Route53, all infra in Terraform`, type: 'secondary' },
+        { text: `  -- React/TS frontend for non technical stakeholders to audit network policy`, type: 'secondary' },
+        { text: ``, type: 'default' },
+
+        { text: `SKILLS`, type: 'accent' },
+        { text: `  Languages   C  C++  C#  Go  Python  Java  TypeScript  JavaScript  SQL  Bash`, type: 'default' },
+        { text: `  Backend     PostgreSQL  Redis  Kafka  Node.js  WebSockets  REST  MongoDB`, type: 'default' },
+        { text: `  Cloud       AWS (ROSA S3 Lambda API Gateway Route53)  Terraform  Docker  Kubernetes`, type: 'default' },
+        { text: `  Frontend    React  Angular  Git  Postman`, type: 'default' },
+        { text: ``, type: 'default' },
+
+        { text: `tip: curl -O resume.pdf  to download a copy`, type: 'accent' },
       ]
     }
     if (!file) {
       return [{ text: 'usage: cat [file]', type: 'secondary' }]
     }
     return [{ text: `cat: ${file}: No such file or directory`, type: 'error' }]
+  },
+
+  curl: (args, _ctx) => {
+    const isResumeDownload = args.includes('resume.pdf')
+    if (!isResumeDownload) {
+      return [{ text: `curl: only resume.pdf is available here`, type: 'secondary' }]
+    }
+
+    // trigger actual browser download
+    setTimeout(() => {
+      const a = document.createElement('a')
+      a.href = '/resume.pdf'
+      a.download = 'rc_resume.pdf'
+      a.click()
+    }, 300)
+
+    return [
+      { text: `% Total  % Received  Xferd  Avg`, type: 'secondary' },
+      { text: `100      184K        100    184K`, type: 'default' },
+      { text: `rc_resume.pdf saved.`, type: 'accent' },
+    ]
   },
 
   pwd: (_args, ctx) => [

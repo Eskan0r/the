@@ -187,3 +187,6 @@ html, body, #root {
 .nf-key  { color: var(--accent-dim); }
 .nf-val  { color: var(--text-primary); }
 .nf-sep  { color: var(--text-secondary); }
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { display: none; }
