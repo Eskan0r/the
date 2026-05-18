@@ -4,13 +4,17 @@ import Desktop from './components/desktop/Desktop'
 import Taskbar from './components/desktop/Taskbar'
 import WindowManager from './components/window/WindowManager'
 import GravityControls from './components/desktop/GravityControls'
+import BootScreen from './components/desktop/BootScreen'
 import { useAuthStore } from './store/authStore'
 import { useDesktopStore } from './store/desktopStore'
+
+const SESSION_KEY = 'ronakos_booted'
 
 export default function App() {
   const { init } = useAuthStore()
   const cursorBlackHole = useDesktopStore((s) => s.cursorBlackHole)
   const [cursorPos, setCursorPos] = useState({ x: -100, y: -100 })
+  const [booted, setBooted] = useState(() => !!sessionStorage.getItem(SESSION_KEY))
 
   useEffect(() => { init() }, [])
 
@@ -25,8 +29,14 @@ export default function App() {
     return () => window.removeEventListener('mousemove', handler)
   }, [cursorBlackHole])
 
+  const handleBooted = () => {
+    sessionStorage.setItem(SESSION_KEY, '1')
+    setBooted(true)
+  }
+
   return (
     <>
+      {!booted && <BootScreen onDone={handleBooted} />}
       <Desktop />
       <WindowManager />
       <Taskbar />
