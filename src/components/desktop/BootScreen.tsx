@@ -1,5 +1,5 @@
 // BootScreen.tsx
-import BHPiece1 from './BHPiece1'
+import BlackHoleRenderer from './BlackHoleRenderer'
 
 interface Props { onDone: () => void }
 
@@ -16,7 +16,7 @@ export default function BootScreen({ onDone }: Props) {
       }}
     >
       {/* black hole render sits behind everything */}
-      <BHPiece1 />
+      <BlackHoleRenderer />
 
       {/* your UI text on top */}
       <div style={{
