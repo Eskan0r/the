@@ -113,6 +113,7 @@ export const COMMANDS: Record<string, CommandHandler> = {
       cowsay: 'cowsay - cow says a thing',
       sl: 'sl - steam locomotive',
       gravitate: 'gravitate - toggle cursor black hole, left click to spawn asteroids',
+      bh: 'bh - toggle single centered black hole mode',
     }
     if (!cmd) return [{ text: 'usage: man [command]', type: 'secondary' }]
     const entry = pages[cmd]
@@ -298,6 +299,7 @@ export const COMMANDS: Record<string, CommandHandler> = {
     { text: `  ${'echo [text]'.padEnd(14)} print text`, type: 'default' },
     { text: `  ${'clear'.padEnd(14)} clear the terminal`, type: 'default' },
     { text: `  ${'gravitate'.padEnd(14)} toggle cursor black hole, left click to spawn asteroids`, type: 'default' },
+    { text: `  ${'bh'.padEnd(14)} toggle single centered black hole mode`, type: 'default' },
     { text: `  ${'date'.padEnd(14)} current date and time`, type: 'default' },
     { text: `  ${'open [app]'.padEnd(14)} open an application`, type: 'default' },
     { text: `  ${'uname -a'.padEnd(14)} system information`, type: 'default' },
@@ -529,6 +531,14 @@ export const COMMANDS: Record<string, CommandHandler> = {
   },
 
   pfetch: (args, ctx) => COMMANDS.neofetch(args, ctx),
+
+  bh: (_args, _ctx) => {
+    import('../../../store/desktopStore').then(({ useDesktopStore }) => {
+      const current = useDesktopStore.getState().singleCenteredBH
+      useDesktopStore.getState().setSingleCenteredBH(!current)
+    })
+    return [{ text: 'single centered black hole: toggled', type: 'accent' }]
+  },
 }
 
 export const BLOCKED_COMMAND_NAMES = [

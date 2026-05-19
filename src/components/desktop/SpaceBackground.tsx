@@ -162,8 +162,11 @@ function randomEdgeSpawn(W: number, H: number, speed = 0.4 + Math.random() * 0.8
     case 2:  pos = { x: Math.random() * W, y: H + DESPAWN_MARGIN }; break
     default: pos = { x: -DESPAWN_MARGIN, y: Math.random() * H }; break
   }
-  const tx = W * (0.2 + Math.random() * 0.6)
-  const ty = H * (0.2 + Math.random() * 0.6)
+  // Weight targets towards edges/corners to avoid center convergence
+  const txRand = Math.random()
+  const tyRand = Math.random()
+  const tx = W * (txRand < 0.5 ? -0.2 + Math.random() * 0.3 : 0.9 + Math.random() * 0.3)
+  const ty = H * (tyRand < 0.5 ? -0.2 + Math.random() * 0.3 : 0.9 + Math.random() * 0.3)
   const dx = tx - pos.x
   const dy = ty - pos.y
   const len = Math.sqrt(dx * dx + dy * dy)
@@ -505,12 +508,15 @@ export default function SpaceBackground() {
   const cursorBlackHole = useDesktopStore((s) => s.cursorBlackHole)
   const bhStrength = useDesktopStore((s) => s.bhStrength)
   const bhSize = useDesktopStore((s) => s.bhSize)
+  const singleCenteredBH = useDesktopStore((s) => s.singleCenteredBH)
   const bhStrengthRef = useRef(bhStrength)
   const bhSizeRef = useRef(bhSize)
   useEffect(() => { bhStrengthRef.current = bhStrength }, [bhStrength])
   useEffect(() => { bhSizeRef.current = bhSize }, [bhSize])
   const cursorBHRef = useRef(cursorBlackHole)
   useEffect(() => { cursorBHRef.current = cursorBlackHole }, [cursorBlackHole])
+  const singleCenteredBHRef = useRef(singleCenteredBH)
+  useEffect(() => { singleCenteredBHRef.current = singleCenteredBH }, [singleCenteredBH])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -521,10 +527,12 @@ export default function SpaceBackground() {
     canvas.width = W
     canvas.height = H
 
-    const blackHoles: BlackHole[] = [
-      { pos: { x: W * 0.3, y: H * 0.4 }, radius: 18, ringPhase: 0 },
-      { pos: { x: W * 0.72, y: H * 0.6 }, radius: 14, ringPhase: Math.PI },
-    ]
+    const blackHoles: BlackHole[] = singleCenteredBH
+      ? [{ pos: { x: W * 0.5, y: H * 0.5 }, radius: 18, ringPhase: 0 }]
+      : [
+          { pos: { x: W * 0.3, y: H * 0.4 }, radius: 18, ringPhase: 0 },
+          { pos: { x: W * 0.72, y: H * 0.6 }, radius: 14, ringPhase: Math.PI },
+        ]
     const satellite: Satellite = {
       angle: 0, orbitRadius: 55, orbitSpeed: 0.012, blackHoleIndex: 0,
     }
@@ -546,8 +554,12 @@ export default function SpaceBackground() {
     const onResize = () => {
       W = window.innerWidth; H = window.innerHeight
       canvas.width = W; canvas.height = H
-      blackHoles[0].pos = { x: W * 0.3, y: H * 0.4 }
-      blackHoles[1].pos = { x: W * 0.72, y: H * 0.6 }
+      if (singleCenteredBH) {
+        blackHoles[0].pos = { x: W * 0.5, y: H * 0.5 }
+      } else {
+        blackHoles[0].pos = { x: W * 0.3, y: H * 0.4 }
+        if (blackHoles.length > 1) blackHoles[1].pos = { x: W * 0.72, y: H * 0.6 }
+      }
       stars.forEach(s => { s.x = s.x % W; s.y = s.y % H })
     }
 
@@ -1207,6 +1219,14 @@ export default function SpaceBackground() {
       ctx.clearRect(0, 0, W, H)
       pendingDebris = []
 
+      // Update blackHoles array if singleCenteredBH mode changed
+      if (singleCenteredBHRef.current && blackHoles.length > 1) {
+        blackHoles.length = 1
+        blackHoles[0] = { pos: { x: W * 0.5, y: H * 0.5 }, radius: 18, ringPhase: 0 }
+      } else if (!singleCenteredBHRef.current && blackHoles.length === 1) {
+        blackHoles.push({ pos: { x: W * 0.72, y: H * 0.6 }, radius: 14, ringPhase: Math.PI })
+      }
+
       drawStars()
 
       trySpawnCloud(timestamp)
@@ -1235,7 +1255,11 @@ export default function SpaceBackground() {
       const objectMap = new Map<number, SpaceObject>(objects.map((o) => [o.id, o]))
       applyObjectGravity(objects)
 
-      if (cursorBHRef.current && mousePos.x > -9999) {
+      if (singleCenteredBHRef.current) {
+        // Keep single BH centered, ignore cursor
+        blackHoles[0].pos.x += (W * 0.5 - blackHoles[0].pos.x) * 0.04
+        blackHoles[0].pos.y += (H * 0.5 - blackHoles[0].pos.y) * 0.04
+      } else if (cursorBHRef.current && mousePos.x > -9999) {
         const bh = blackHoles[0]
         bh.pos.x += (mousePos.x - bh.pos.x) * 0.12
         bh.pos.y += (mousePos.y - bh.pos.y) * 0.12
