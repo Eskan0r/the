@@ -1,32 +1,74 @@
 // BootScreen.tsx
-import BlackHoleRenderer from './BlackHoleRenderer'
+import { useEffect, useRef, useState } from 'react'
 
 interface Props { onDone: () => void }
 
 export default function BootScreen({ onDone }: Props) {
+  const [ready, setReady] = useState(false)
+  const didProceed = useRef(false)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setReady(true), 300)
+
+    return () => clearTimeout(timer)
+  }, [])
+
+  const proceed = () => {
+    if (!ready || didProceed.current) return
+    didProceed.current = true
+    onDone()
+  }
+
+  useEffect(() => {
+    const handler = () => proceed()
+
+    window.addEventListener('keydown', handler)
+    window.addEventListener('click', handler)
+    window.addEventListener('touchstart', handler)
+
+    return () => {
+      window.removeEventListener('keydown', handler)
+      window.removeEventListener('click', handler)
+      window.removeEventListener('touchstart', handler)
+    }
+  }, [ready])
+
   return (
     <div
-      onClick={onDone}
-      onKeyDown={onDone}
-      tabIndex={0}
-      autoFocus
       style={{
-        position: 'fixed', inset: 0, zIndex: 9999,
-        cursor: 'default', outline: 'none',
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        background: 'black',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: "'Courier New', monospace",
       }}
     >
-      {/* black hole render sits behind everything */}
-      <BlackHoleRenderer />
-
-      {/* your UI text on top */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 13, color: 'rgba(255,255,255,0.4)',
-      }}>
-        press any key to continue
+      <div
+        style={{
+          fontSize: 11,
+          letterSpacing: '0.28em',
+          textTransform: 'uppercase',
+          color: ready
+            ? 'rgba(255,255,255,0.75)'
+            : 'rgba(140,255,255,0)',
+          transition: 'color 0.6s ease',
+          animation: ready
+            ? 'bootPulse 2.2s ease-in-out infinite'
+            : undefined,
+        }}
+      >
+        — press any key to continue —
       </div>
+
+      <style>{`
+        @keyframes bootPulse {
+          0%,100% { opacity: 0.75; }
+          50% { opacity: 1; }
+        }
+      `}</style>
     </div>
   )
 }
