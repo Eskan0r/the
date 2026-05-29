@@ -1,4 +1,5 @@
 import { useWindowStore } from '../../store/windowStore'
+import { useDesktopStore } from '../../store/desktopStore'
 import DesktopIcon from './DesktopIcon'
 import SpaceBackground from './SpaceBackground'
 
@@ -25,7 +26,6 @@ function StocksIconSVG() {
       <circle cx="7" cy="5" r="1.5" fill="#ff5555"/>
       <circle cx="12" cy="5" r="1.5" fill="#ffaa00"/>
       <circle cx="17" cy="5" r="1.5" fill="#44ff88"/>
-      {/* Candlestick chart */}
       <line x1="8"  y1="22" x2="8"  y2="14" stroke="#00ff88" strokeWidth="1"/>
       <rect x="6"  y="16" width="4" height="4" fill="#00ff88"/>
       <line x1="16" y1="24" x2="16" y2="16" stroke="#ff5555" strokeWidth="1"/>
@@ -38,42 +38,63 @@ function StocksIconSVG() {
   )
 }
 
+const TASKBAR_HEIGHT = 32
+const ICON_W = 80
+const ICON_H = 60
+
 const DESKTOP_APPS = [
   {
     id: 'terminal-main', label: 'terminal', appType: 'terminal',
     title: 'Terminal', width: 720, height: 480,
+    defaultPos: { x: 20, y: 20 },
     icon: <TerminalIconSVG />,
   },
   {
     id: 'stocks-main', label: 'stocks', appType: 'stocks',
     title: 'market.exe', width: 900, height: 600,
+    defaultPos: { x: 20, y: 90 },
     icon: <StocksIconSVG />,
   },
 ]
 
 export default function Desktop() {
   const { openWindow } = useWindowStore()
+  const { iconPositions, setIconPosition } = useDesktopStore()
 
   return (
     <>
       <SpaceBackground />
-      <div
-        style={{ position: 'fixed', inset: 0, zIndex: 1 }}
-        onClick={() => {}}
-      >
-        <div style={{ position: 'absolute', top: 20, left: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {DESKTOP_APPS.map((app) => (
-            <DesktopIcon
+      <div style={{ position: 'fixed', inset: 0, zIndex: 1 }}>
+        {DESKTOP_APPS.map((app) => {
+          const pos = iconPositions[app.id] ?? app.defaultPos
+
+          return (
+            <div
               key={app.id}
-              label={app.label}
-              icon={app.icon}
-              onDoubleClick={() => openWindow({
-                id: app.id, title: app.title,
-                appType: app.appType, width: app.width, height: app.height,
-              })}
-            />
-          ))}
-        </div>
+              style={{ position: 'absolute', left: pos.x, top: pos.y }}
+            >
+              <DesktopIcon
+                label={app.label}
+                icon={app.icon}
+                onDoubleClick={() =>
+                  openWindow({
+                    id: app.id,
+                    title: app.title,
+                    appType: app.appType,
+                    width: app.width,
+                    height: app.height,
+                  })
+                }
+                onPositionChange={(dx, dy) =>
+                  setIconPosition(app.id, {
+                    x: Math.max(0, Math.min(pos.x + dx, window.innerWidth - ICON_W)),
+                    y: Math.max(0, Math.min(pos.y + dy, window.innerHeight - TASKBAR_HEIGHT - ICON_H)),
+                  })
+                }
+              />
+            </div>
+          )
+        })}
       </div>
     </>
   )
