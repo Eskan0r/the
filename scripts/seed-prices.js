@@ -28,4 +28,4 @@ const { error } = await supabase
 if (error) { console.error(error); process.exit(1) }
 
 console.table(updates)
-console.log('Done.')
+console.log('Done')
