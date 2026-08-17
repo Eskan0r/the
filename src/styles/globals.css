@@ -197,7 +197,8 @@ input[type=number]::-webkit-outer-spin-button { display: none; }
 
 .landing-page {
   position: relative;
-  min-height: 100vh;
+  height: 100vh;
+  overflow-y: auto;
   background: #ffffff;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color: #1a1a1a;
@@ -213,7 +214,7 @@ input[type=number]::-webkit-outer-spin-button { display: none; }
 .hero-section {
   position: relative;
   z-index: 1;
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -221,19 +222,17 @@ input[type=number]::-webkit-outer-spin-button { display: none; }
 }
 
 .liquid-glass-root {
-  position: fixed;
+  position: absolute;
   inset: 0;
 }
 
 .hero-center {
-  position: fixed;
-  top: 49%;
-  left: 0;
-  right: 0;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   z-index: 2;
+  margin-top: 40px;
 }
 
 .hero-content {
@@ -258,7 +257,7 @@ input[type=number]::-webkit-outer-spin-button { display: none; }
 }
 
 .lg-glass {
-  position: fixed;
+  position: absolute;
   top: 38%;
   left: 50%;
   transform: translate(-50%, -50%);
@@ -351,112 +350,125 @@ input[type=number]::-webkit-outer-spin-button { display: none; }
   transform: translateY(-1px);
 }
 
-/* Cards Section */
+/* Projects Section */
 
-.cards-section {
+.projects-section {
   position: relative;
-  z-index: 1;
-  padding: 0 24px 120px;
-  max-width: 1100px;
-  margin: 0 auto;
+  z-index: 3;
+  background: #ffffff;
+  min-height: 100vh;
+  padding: 80px 24px 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 80px;
 }
 
-.cards-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+.project-slide {
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
   gap: 24px;
 }
 
-.card-contact {
-  grid-column: 1 / -1;
+.project-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-/* Card internals */
-
-.card-label {
+.project-badge {
+  font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #999;
-  margin-bottom: 12px;
-  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.1em;
 }
 
-.card-title {
-  font-size: 22px;
+.project-title {
+  font-size: 28px;
   font-weight: 700;
   color: #111;
-  margin: 0 0 6px;
+  margin: 0;
   letter-spacing: -0.02em;
 }
 
-.card-subtitle {
+.project-desc {
   font-size: 14px;
   color: #666;
-  margin: 0 0 16px;
+  margin: 0;
   line-height: 1.5;
 }
 
-.card-tags {
+.project-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 20px;
+  margin-top: 4px;
 }
 
-.card-tags span {
+.project-tags span {
   font-size: 11px;
   padding: 4px 10px;
   background: #f0f0f0;
   border-radius: 100px;
   color: #555;
   font-family: 'JetBrains Mono', monospace;
-  letter-spacing: 0.01em;
 }
 
-.card-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #111;
+.demo-wrapper {
+  display: block;
   text-decoration: none;
-  transition: color 0.15s;
-  cursor: pointer;
+  transition: transform 0.3s ease;
 }
 
-.card-link:hover {
-  color: #00cc66;
+.demo-wrapper:hover {
+  transform: scale(1.01);
 }
 
-/* Contact card */
-
-.contact-links {
+.next-section {
+  min-height: 40vh;
   display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
-}
-
-.contact-link {
-  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+}
+
+.next-section-text {
   font-size: 14px;
-  color: #555;
-  text-decoration: none;
-  transition: color 0.15s;
-  cursor: pointer;
+  color: #999;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.05em;
 }
 
-.contact-link:hover {
-  color: #111;
-}
+/* Responsive */
 
-/* Bubble card wobble animation */
+@media (max-width: 640px) {
+  .hero-name {
+    font-size: clamp(28px, 9vw, 48px);
+    padding: 10px 20px;
+  }
 
-@keyframes bubbleWobble {
-  0%, 100% { filter: url(#bubble-warp); }
-  50% { filter: url(#bubble-warp) brightness(1.01); }
+  .hero-tagline {
+    font-size: clamp(13px, 4vw, 16px);
+    padding: 8px 16px;
+  }
+
+  .cta-primary {
+    padding: 10px 22px;
+    font-size: 13px;
+  }
+
+  .cta-secondary {
+    width: 40px;
+    height: 40px;
+  }
+
+  .projects-section {
+    gap: 60px;
+    padding: 60px 16px 80px;
+  }
+
+  .project-title {
+    font-size: 22px;
+  }
 }

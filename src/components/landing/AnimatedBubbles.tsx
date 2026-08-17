@@ -8,7 +8,6 @@ interface Bubble {
   radius: number
   hue: number
   opacity: number
-  entered: boolean
 }
 
 export default function AnimatedBubbles() {
@@ -66,20 +65,9 @@ export default function AnimatedBubbles() {
 
     const colors = [200, 160, 45, 340, 270, 120, 30, 210]
     const BUBBLE_RADIUS = 80
-    const BASE_SPEED = 1
-    const MAX_BUBBLES = 100
-    const SPAWN_INTERVAL = 400
-    const NUM_POINTS = 3
-    const CLUSTER_RADIUS = 80
-    const ORBIT_MULTIPLIER = 1.6
-    let spawnAngle = Math.PI * 0.85
-    let nextPoint = 0
-    let lastPoint = -1
-
-    const spawnPoints = Array.from({ length: NUM_POINTS }, (_, i) => {
-      const t = (i / (NUM_POINTS - 1)) - 0.5
-      return { ox: t * CLUSTER_RADIUS * 2, oy: 0 }
-    })
+    const BASE_SPEED = 0.7
+    const MAX_BUBBLES = 60
+    const SPAWN_INTERVAL = 600
 
     const resize = () => {
       canvas.width = window.innerWidth
@@ -88,47 +76,35 @@ export default function AnimatedBubbles() {
     resize()
     window.addEventListener('resize', resize)
 
-    const spawnBubble = (pointIdx: number) => {
+    const spawnBubble = () => {
       const w = canvas.width
       const h = canvas.height
-      const cx = w / 2
-      const cy = h / 2
-      const orbitRadius = Math.sqrt(cx * cx + cy * cy) * ORBIT_MULTIPLIER
 
-      const baseX = cx + Math.cos(spawnAngle) * orbitRadius
-      const baseY = cy + Math.sin(spawnAngle) * orbitRadius
+      // Spawn from off-screen: bottom edge or left edge
+      const fromBottom = Math.random() < 0.5
+      let sx: number, sy: number
 
-      const pt = spawnPoints[pointIdx]
-      const cos = Math.cos(spawnAngle)
-      const sin = Math.sin(spawnAngle)
-      const rx = pt.ox * cos - pt.oy * sin
-      const ry = pt.ox * sin + pt.oy * cos
-      const sx = baseX + rx
-      const sy = baseY + ry
+      if (fromBottom) {
+        sx = Math.random() * w * 1.2 - w * 0.1
+        sy = h + BUBBLE_RADIUS
+      } else {
+        sx = -BUBBLE_RADIUS
+        sy = Math.random() * h * 1.2 - h * 0.1
+      }
 
-      const dx = w - sx
-      const dy = h * 0.8 - sy
-      const len = Math.sqrt(dx * dx + dy * dy)
-      const dirX = dx / len
-      const dirY = dy / len
-
-      const spread = 0.8
-      const dirAngle = Math.atan2(dirY, dirX)
-      const centerAngle = Math.atan2(cy - sy, cx - sx)
-      const biased = dirAngle + (centerAngle - dirAngle) * 0.15
-      const a = biased + (Math.random() - 0.95) * spread
-      const speed = BASE_SPEED * (0.7 + Math.random() * 1.2)
+      // Direction: anywhere from straight right (0) to straight up (-PI/2)
+      // That's the upper-right quadrant: angle between -PI/2 and 0
+      const angle = -Math.random() * (Math.PI / 2) // -90deg to 0deg
+      const speed = BASE_SPEED * (0.5 + Math.random() * 1.0)
 
       bubbles.push({
-        x: sx + (Math.random() - 0.5) * 20,
-        y: sy + (Math.random() - 0.5) * 20,
-        vx: Math.cos(a) * speed,
-        vy: Math.sin(a) * speed,
+        x: sx,
+        y: sy,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
         radius: BUBBLE_RADIUS,
         hue: colors[Math.floor(Math.random() * colors.length)] + Math.random() * 30,
-        // opacity: Math.random() * 0.15 + 0.1,
         opacity: 0.3,
-        entered: false,
       })
     }
 
@@ -138,11 +114,7 @@ export default function AnimatedBubbles() {
       tick = now
 
       if (now - lastSpawnTime >= SPAWN_INTERVAL && bubbles.length < MAX_BUBBLES) {
-        do {
-          nextPoint = Math.floor(Math.random() * NUM_POINTS)
-        } while (nextPoint === lastPoint)
-        lastPoint = nextPoint
-        spawnBubble(nextPoint)
+        spawnBubble()
         lastSpawnTime = now
       }
 
@@ -151,12 +123,9 @@ export default function AnimatedBubbles() {
         b.x += b.vx
         b.y += b.vy
 
-        if (!b.entered && b.x > 0 && b.x < canvas.width && b.y > 0 && b.y < canvas.height) {
-          b.entered = true
-        }
-
-        const farOffScreen = b.x < -BUBBLE_RADIUS * 40 || b.x > canvas.width + BUBBLE_RADIUS * 40 || b.y < -BUBBLE_RADIUS * 40 || b.y > canvas.height + BUBBLE_RADIUS * 40
-        if (farOffScreen || (b.entered && (b.x > canvas.width + BUBBLE_RADIUS * 4 || b.y < -BUBBLE_RADIUS * 4 || b.y > canvas.height + BUBBLE_RADIUS * 4 || b.x < -BUBBLE_RADIUS * 4))) {
+        // Remove when far off-screen (top or right)
+        if (b.x < -BUBBLE_RADIUS * 4 || b.x > canvas.width + BUBBLE_RADIUS * 4 ||
+            b.y < -BUBBLE_RADIUS * 4 || b.y > canvas.height + BUBBLE_RADIUS * 4) {
           bubbles.splice(i, 1)
         }
       }

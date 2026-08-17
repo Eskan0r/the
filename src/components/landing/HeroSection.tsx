@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react'
-import { motion } from 'framer-motion'
 import { LiquidGlass } from '@ybouane/liquidglass'
 import AnimatedBubbles from './AnimatedBubbles'
 
@@ -11,22 +10,22 @@ export default function HeroSection() {
     if (!rootRef.current || !glassRef.current) return
 
     glassRef.current.dataset.config = JSON.stringify({
-      blurAmount: 0.12,
-      refraction: 0.85,
-      chromAberration: 0.04,
-      edgeHighlight: 0.14,
-      specular: 0.3,
-      fresnel: 0.8,
-      distortion: 0.02,
-      cornerRadius: 32,
-      zRadius: 28,
-      opacity: 0.95,
-      saturation: 0.15,
-      tintStrength: 0.03,
-      brightness: 0.04,
-      shadowOpacity: 0.12,
-      shadowSpread: 10,
-      shadowOffsetY: 2,
+      blurAmount: 0,         // How much the background blurs through the glass
+      refraction: 1,        // How much light bends/distorts behind the glass
+      chromAberration: .3,   // Color splitting at edges (RGB fringing)
+      edgeHighlight: 0,     // Bright glow around the glass edge
+      specular: 0.3,           // Bright specular highlight spot on the glass
+      fresnel: 0.8,            // Edge-vs-center transparency (higher = more edge glow)
+      distortion: 1,        // Subtle warping of content behind the glass
+      cornerRadius: 32,        // Roundness of the glass shape
+      zRadius: 28,             // How "thick" the glass appears in 3D
+      opacity: 1,           // Overall glass opacity (1 = fully opaque glass)
+      saturation: 1,        // Color saturation boost through the glass
+      tintStrength: 1,      // How much the glass tints content behind it
+      brightness: 0.04,        // Brightness boost through the glass
+      shadowOpacity: 0.12,     // Drop shadow opacity beneath the glass
+      shadowSpread: 10,        // How far the shadow spreads
+      shadowOffsetY: 2,        // Shadow vertical offset
     })
 
     let instance: Awaited<ReturnType<typeof LiquidGlass.init>> | null = null
@@ -43,6 +42,23 @@ export default function HeroSection() {
     }
   }, [])
 
+  useEffect(() => {
+    const landingPage = document.querySelector('.landing-page')
+    if (!landingPage) return
+
+    const onScroll = () => {
+      const h = landingPage.clientHeight
+      const progress = Math.min(landingPage.scrollTop / (h * 0.8), 1)
+      const heroOpacity = Math.max(1 - progress * 2, 0)
+
+      const heroCenter = document.querySelector('.hero-center') as HTMLElement
+      if (heroCenter) heroCenter.style.opacity = String(heroOpacity)
+    }
+
+    landingPage.addEventListener('scroll', onScroll, { passive: true })
+    return () => landingPage.removeEventListener('scroll', onScroll)
+  }, [])
+
   return (
     <section className="hero-section">
       <div className="liquid-glass-root" ref={rootRef}>
@@ -52,20 +68,10 @@ export default function HeroSection() {
         </div>
       </div>
 
-      <motion.div
-        className="hero-center"
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-      >
+      <div className="hero-center">
         <p className="hero-tagline">makin things that look like they work</p>
 
-        <motion.div
-          className="hero-ctas"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        >
+        <div className="hero-ctas">
           <a
             href="https://ronakchavva.com"
             target="_blank"
@@ -82,8 +88,8 @@ export default function HeroSection() {
           >
             <GitHubIcon />
           </a>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </section>
   )
 }
