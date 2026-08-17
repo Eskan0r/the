@@ -8,6 +8,7 @@ interface Bubble {
   radius: number
   hue: number
   opacity: number
+  entered: boolean
 }
 
 export default function AnimatedBubbles() {
@@ -66,7 +67,7 @@ export default function AnimatedBubbles() {
     const colors = [200, 160, 45, 340, 270, 120, 30, 210]
     const BUBBLE_RADIUS = 80
     const BASE_SPEED = 3.5
-    const MAX_BUBBLES = 20
+    const MAX_BUBBLES = 100
     const SPAWN_INTERVAL = 250
     let spawnAngle = Math.atan2(.5, -1) // start bottom-left
 
@@ -105,6 +106,7 @@ export default function AnimatedBubbles() {
         radius: BUBBLE_RADIUS,
         hue: colors[Math.floor(Math.random() * colors.length)] + Math.random() * 30,
         opacity: Math.random() * 0.5 + 0.3,
+        entered: false,
       })
     }
 
@@ -112,7 +114,7 @@ export default function AnimatedBubbles() {
 
     const loop = (now: number) => {
       tick = now
-      spawnAngle += 0.0003
+      spawnAngle += 0.0009
 
       if (now - lastSpawnTime >= SPAWN_INTERVAL && bubbles.length < MAX_BUBBLES) {
         spawnBubble()
@@ -124,7 +126,12 @@ export default function AnimatedBubbles() {
         b.x += b.vx
         b.y += b.vy
 
-        if (b.x > canvas.width + BUBBLE_RADIUS * 2 || b.y < -BUBBLE_RADIUS * 2) {
+        if (!b.entered && b.x > 0 && b.x < canvas.width && b.y > 0 && b.y < canvas.height) {
+          b.entered = true
+        }
+
+        const farOffScreen = b.x < -BUBBLE_RADIUS * 20 || b.x > canvas.width + BUBBLE_RADIUS * 20 || b.y < -BUBBLE_RADIUS * 20 || b.y > canvas.height + BUBBLE_RADIUS * 20
+        if (farOffScreen || (b.entered && (b.x > canvas.width + BUBBLE_RADIUS * 4 || b.y < -BUBBLE_RADIUS * 4 || b.y > canvas.height + BUBBLE_RADIUS * 4 || b.x < -BUBBLE_RADIUS * 4))) {
           bubbles.splice(i, 1)
         }
       }
