@@ -226,13 +226,17 @@ input[type=number]::-webkit-outer-spin-button { display: none; }
   inset: 0;
 }
 
-.hero-center {
-  position: relative;
+.hero-glass-panel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
-  z-index: 2;
-  margin-top: 40px;
+  gap: 8px;
+  padding: 40px 60px;
 }
 
 .hero-content {
@@ -251,42 +255,16 @@ input[type=number]::-webkit-outer-spin-button { display: none; }
   letter-spacing: -0.03em;
   line-height: 1.1;
   margin: 0;
-  padding: 16px 40px;
-  display: inline-block;
-  color: rgba(0, 0, 0, 0.75);
-}
-
-.lg-glass {
-  position: absolute;
-  top: 38%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 1;
-}
-
-.hero-under {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 24px;
+  color: #111;
 }
 
 .hero-tagline {
   font-size: clamp(16px, 2.5vw, 22px);
-  color: rgba(0, 0, 0, 0.5);
-  margin-top: 20px;
+  color: #333;
+  margin: 0;
   font-weight: 400;
   letter-spacing: -0.01em;
-  padding: 10px 24px;
-  background: rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
-  border-radius: 100px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow:
-    0 2px 12px rgba(0, 0, 0, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  display: inline-block;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .hero-ctas {
@@ -294,7 +272,7 @@ input[type=number]::-webkit-outer-spin-button { display: none; }
   align-items: center;
   justify-content: center;
   gap: 12px;
-  margin-top: 40px;
+  margin-top: 12px;
 }
 
 .cta-primary {

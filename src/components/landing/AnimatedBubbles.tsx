@@ -63,7 +63,7 @@ export default function AnimatedBubbles() {
     let frameId: number
     let tick = 0
 
-    const colors = [200, 160, 45, 340, 270, 120, 30, 210]
+    const colors = [200, 160, 340, 270, 120, 30, 210]
     const BUBBLE_RADIUS = 80
     const BASE_SPEED = 0.7
     const MAX_BUBBLES = 60
@@ -80,21 +80,13 @@ export default function AnimatedBubbles() {
       const w = canvas.width
       const h = canvas.height
 
-      // Spawn from off-screen: bottom edge or left edge
-      const fromBottom = Math.random() < 0.5
-      let sx: number, sy: number
+      // Spawn off-screen to the left
+      const sx = -BUBBLE_RADIUS
+      const sy = Math.random() * h
 
-      if (fromBottom) {
-        sx = Math.random() * w * 1.2 - w * 0.1
-        sy = h + BUBBLE_RADIUS
-      } else {
-        sx = -BUBBLE_RADIUS
-        sy = Math.random() * h * 1.2 - h * 0.1
-      }
-
-      // Direction: anywhere from straight right (0) to straight up (-PI/2)
-      // That's the upper-right quadrant: angle between -PI/2 and 0
-      const angle = -Math.random() * (Math.PI / 2) // -90deg to 0deg
+      // Only right and up: vx > 0, vy < 0
+      // Angle between 0 (straight right) and -PI/2 (straight up), biased right
+      const angle = -Math.pow(Math.random(), 3) * (Math.PI / 2)
       const speed = BASE_SPEED * (0.5 + Math.random() * 1.0)
 
       bubbles.push({
@@ -123,9 +115,9 @@ export default function AnimatedBubbles() {
         b.x += b.vx
         b.y += b.vy
 
-        // Remove when far off-screen (top or right)
-        if (b.x < -BUBBLE_RADIUS * 4 || b.x > canvas.width + BUBBLE_RADIUS * 4 ||
-            b.y < -BUBBLE_RADIUS * 4 || b.y > canvas.height + BUBBLE_RADIUS * 4) {
+        // Remove when off-screen top or right
+        if (b.x > canvas.width + BUBBLE_RADIUS * 4 ||
+            b.y < -BUBBLE_RADIUS * 4) {
           bubbles.splice(i, 1)
         }
       }
@@ -147,11 +139,12 @@ export default function AnimatedBubbles() {
       ref={canvasRef as React.RefObject<HTMLCanvasElement>}
       data-dynamic
       style={{
-        position: 'absolute',
+        position: 'fixed',
         inset: 0,
         width: '100%',
         height: '100%',
         pointerEvents: 'none',
+        zIndex: 0,
       }}
     />
   )

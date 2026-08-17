@@ -35,7 +35,7 @@ export default function LandingPage() {
           <div className="project-info">
             <span className="project-badge" style={{ color: '#00ff88' }}>02</span>
             <h2 className="project-title">RonakOS</h2>
-            <p className="project-desc">Desktop-grade portfolio experience</p>
+            <p className="project-desc">Desktop portfolio experience</p>
             <div className="project-tags">
               <span>React</span>
               <span>TypeScript</span>
