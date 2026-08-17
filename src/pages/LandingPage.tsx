@@ -45,7 +45,7 @@ export default function LandingPage() {
             </div>
           </div>
           <a
-            href="https://ronakchavva.com"
+            href="https://os.ronakchavva.com"
             target="_blank"
             rel="noopener noreferrer"
             className="demo-wrapper"
