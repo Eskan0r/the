@@ -10,22 +10,22 @@ export default function HeroSection() {
     if (!rootRef.current || !glassRef.current) return
 
     glassRef.current.dataset.config = JSON.stringify({
-      blurAmount: 0,         // How much the background blurs through the glass
-      refraction: 1,        // How much light bends/distorts behind the glass
-      chromAberration: .3,   // Color splitting at edges (RGB fringing)
-      edgeHighlight: 0,     // Bright glow around the glass edge
-      specular: 0.3,           // Bright specular highlight spot on the glass
-      fresnel: 0.8,            // Edge-vs-center transparency (higher = more edge glow)
-      distortion: 1,        // Subtle warping of content behind the glass
-      cornerRadius: 32,        // Roundness of the glass shape
-      zRadius: 28,             // How "thick" the glass appears in 3D
-      opacity: 1,           // Overall glass opacity (1 = fully opaque glass)
-      saturation: 1,        // Color saturation boost through the glass
-      tintStrength: 1,      // How much the glass tints content behind it
-      brightness: 0.04,        // Brightness boost through the glass
-      shadowOpacity: 0.12,     // Drop shadow opacity beneath the glass
-      shadowSpread: 10,        // How far the shadow spreads
-      shadowOffsetY: 2,        // Shadow vertical offset
+      blurAmount: 0,
+      refraction: 1,
+      chromAberration: .3,
+      edgeHighlight: 0,
+      specular: 0.3,
+      fresnel: 0.8,
+      distortion: 1,
+      cornerRadius: 32,
+      zRadius: 28,
+      opacity: 1,
+      saturation: 1,
+      tintStrength: 1,
+      brightness: 0.04,
+      shadowOpacity: 0.12,
+      shadowSpread: 10,
+      shadowOffsetY: 2,
     })
 
     let instance: Awaited<ReturnType<typeof LiquidGlass.init>> | null = null
@@ -51,8 +51,8 @@ export default function HeroSection() {
       const progress = Math.min(landingPage.scrollTop / (h * 0.8), 1)
       const heroOpacity = Math.max(1 - progress * 2, 0)
 
-      const heroCenter = document.querySelector('.hero-center') as HTMLElement
-      if (heroCenter) heroCenter.style.opacity = String(heroOpacity)
+      const glassPanel = document.querySelector('.hero-glass-panel') as HTMLElement
+      if (glassPanel) glassPanel.style.opacity = String(heroOpacity)
     }
 
     landingPage.addEventListener('scroll', onScroll, { passive: true })
@@ -63,31 +63,27 @@ export default function HeroSection() {
     <section className="hero-section">
       <div className="liquid-glass-root" ref={rootRef}>
         <AnimatedBubbles />
-        <div className="hero-name lg-glass" ref={glassRef}>
-          Ronak Chavva
-        </div>
-      </div>
-
-      <div className="hero-center">
-        <p className="hero-tagline">makin things that look like they work</p>
-
-        <div className="hero-ctas">
-          <a
-            href="https://ronakchavva.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="cta-primary"
-          >
-            Explore OS
-          </a>
-          <a
-            href="https://github.com/Eskan0r"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="cta-secondary"
-          >
-            <GitHubIcon />
-          </a>
+        <div className="hero-glass-panel lg-glass" ref={glassRef}>
+          <h1 className="hero-name">Ronak Chavva</h1>
+          <p className="hero-tagline">makin things that look like they work</p>
+          <div className="hero-ctas">
+            <a
+              href="https://ronakchavva.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cta-primary"
+            >
+              Explore OS
+            </a>
+            <a
+              href="https://github.com/Eskan0r"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cta-secondary"
+            >
+              <GitHubIcon />
+            </a>
+          </div>
         </div>
       </div>
     </section>

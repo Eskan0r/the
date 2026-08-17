@@ -20,19 +20,19 @@ const BSG = {
 }
 
 const CHAT_MESSAGES = [
-  { name: 'RIyan', color: '#3b82f6', text: 'ready to grind?', own: false },
+  { name: 'Riyan', color: '#3b82f6', text: 'ready to grind?', own: false },
   { name: 'Yash', color: '#f59e0b', text: 'yeah lets do two-sum', own: false },
   { name: 'Ronak', color: BSG.primary, text: 'bet, i see a hash map approach', own: true },
-  { name: 'RIyan', color: '#3b82f6', text: 'nice, check my solution', own: false },
+  { name: 'Riyan', color: '#3b82f6', text: 'nice, check my solution', own: false },
   { name: 'Yash', color: '#f59e0b', text: 'that looks clean ngl', own: false },
   { name: 'Ronak', color: BSG.primary, text: 'can we do three-sum next?', own: true },
-  { name: 'RIyan', color: '#3b82f6', text: 'yeah sure, ill pull up the problem', own: false },
+  { name: 'Riyan', color: '#3b82f6', text: 'yeah sure, ill pull up the problem', own: false },
   { name: 'Yash', color: '#f59e0b', text: 'wait im still on two-sum lol', own: false },
   { name: 'Ronak', color: BSG.primary, text: 'no rush take your time', own: true },
-  { name: 'RIyan', color: '#3b82f6', text: 'yo this room feature is sick', own: false },
+  { name: 'Riyan', color: '#3b82f6', text: 'yo this room feature is sick', own: false },
   { name: 'Yash', color: '#f59e0b', text: 'fr we should use this more', own: false },
   { name: 'Ronak', color: BSG.primary, text: 'down, lets do a dp problem next', own: true },
-  { name: 'RIyan', color: '#3b82f6', text: 'bet coin change?', own: false },
+  { name: 'Riyan', color: '#3b82f6', text: 'bet coin change?', own: false },
   { name: 'Yash', color: '#f59e0b', text: 'im down for that', own: false },
 ]
 
