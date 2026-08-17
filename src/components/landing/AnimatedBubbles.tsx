@@ -68,6 +68,7 @@ export default function AnimatedBubbles() {
     const BASE_SPEED = 3.5
     const MAX_BUBBLES = 20
     const SPAWN_INTERVAL = 250
+    let spawnAngle = Math.atan2(.5, -1) // start bottom-left
 
     const resize = () => {
       canvas.width = window.innerWidth
@@ -79,14 +80,26 @@ export default function AnimatedBubbles() {
     const spawnBubble = () => {
       const w = canvas.width
       const h = canvas.height
-      const angle = Math.atan2(-h, w)
+      const cx = w / 2
+      const cy = h / 2
+      const orbitRadius = Math.sqrt(cx * cx + cy * cy)
+
+      const sx = cx + Math.cos(spawnAngle) * orbitRadius
+      const sy = cy + Math.sin(spawnAngle) * orbitRadius
+
+      const dx = cx - sx
+      const dy = cy - sy
+      const len = Math.sqrt(dx * dx + dy * dy)
+      const dirX = dx / len
+      const dirY = dy / len
+
       const spread = 0.5
-      const a = angle + (Math.random() - 0.5) * spread
+      const a = Math.atan2(dirY, dirX) + (Math.random() - 0.5) * spread
       const speed = BASE_SPEED * (0.85 + Math.random() * 0.3)
 
       bubbles.push({
-        x: -BUBBLE_RADIUS + Math.random() * 20,
-        y: h + BUBBLE_RADIUS - Math.random() * 20,
+        x: sx + (Math.random() - 0.5) * 20,
+        y: sy + (Math.random() - 0.5) * 20,
         vx: Math.cos(a) * speed,
         vy: Math.sin(a) * speed,
         radius: BUBBLE_RADIUS,
@@ -99,6 +112,7 @@ export default function AnimatedBubbles() {
 
     const loop = (now: number) => {
       tick = now
+      spawnAngle += 0.0003
 
       if (now - lastSpawnTime >= SPAWN_INTERVAL && bubbles.length < MAX_BUBBLES) {
         spawnBubble()
