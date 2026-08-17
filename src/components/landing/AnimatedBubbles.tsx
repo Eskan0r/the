@@ -66,10 +66,20 @@ export default function AnimatedBubbles() {
 
     const colors = [200, 160, 45, 340, 270, 120, 30, 210]
     const BUBBLE_RADIUS = 80
-    const BASE_SPEED = 3.5
+    const BASE_SPEED = 1
     const MAX_BUBBLES = 100
-    const SPAWN_INTERVAL = 250
-    let spawnAngle = Math.atan2(.5, -1) // start bottom-left
+    const SPAWN_INTERVAL = 400
+    const NUM_POINTS = 3
+    const CLUSTER_RADIUS = 80
+    const ORBIT_MULTIPLIER = 1.6
+    let spawnAngle = Math.PI * 0.85
+    let nextPoint = 0
+    let lastPoint = -1
+
+    const spawnPoints = Array.from({ length: NUM_POINTS }, (_, i) => {
+      const t = (i / (NUM_POINTS - 1)) - 0.5
+      return { ox: t * CLUSTER_RADIUS * 2, oy: 0 }
+    })
 
     const resize = () => {
       canvas.width = window.innerWidth
@@ -78,25 +88,36 @@ export default function AnimatedBubbles() {
     resize()
     window.addEventListener('resize', resize)
 
-    const spawnBubble = () => {
+    const spawnBubble = (pointIdx: number) => {
       const w = canvas.width
       const h = canvas.height
       const cx = w / 2
       const cy = h / 2
-      const orbitRadius = Math.sqrt(cx * cx + cy * cy)
+      const orbitRadius = Math.sqrt(cx * cx + cy * cy) * ORBIT_MULTIPLIER
 
-      const sx = cx + Math.cos(spawnAngle) * orbitRadius
-      const sy = cy + Math.sin(spawnAngle) * orbitRadius
+      const baseX = cx + Math.cos(spawnAngle) * orbitRadius
+      const baseY = cy + Math.sin(spawnAngle) * orbitRadius
 
-      const dx = cx - sx
-      const dy = cy - sy
+      const pt = spawnPoints[pointIdx]
+      const cos = Math.cos(spawnAngle)
+      const sin = Math.sin(spawnAngle)
+      const rx = pt.ox * cos - pt.oy * sin
+      const ry = pt.ox * sin + pt.oy * cos
+      const sx = baseX + rx
+      const sy = baseY + ry
+
+      const dx = w - sx
+      const dy = h * 0.8 - sy
       const len = Math.sqrt(dx * dx + dy * dy)
       const dirX = dx / len
       const dirY = dy / len
 
-      const spread = 0.5
-      const a = Math.atan2(dirY, dirX) + (Math.random() - 0.5) * spread
-      const speed = BASE_SPEED * (0.85 + Math.random() * 0.3)
+      const spread = 0.8
+      const dirAngle = Math.atan2(dirY, dirX)
+      const centerAngle = Math.atan2(cy - sy, cx - sx)
+      const biased = dirAngle + (centerAngle - dirAngle) * 0.15
+      const a = biased + (Math.random() - 0.95) * spread
+      const speed = BASE_SPEED * (0.7 + Math.random() * 1.2)
 
       bubbles.push({
         x: sx + (Math.random() - 0.5) * 20,
@@ -105,19 +126,23 @@ export default function AnimatedBubbles() {
         vy: Math.sin(a) * speed,
         radius: BUBBLE_RADIUS,
         hue: colors[Math.floor(Math.random() * colors.length)] + Math.random() * 30,
-        opacity: Math.random() * 0.5 + 0.3,
+        // opacity: Math.random() * 0.15 + 0.1,
+        opacity: 0.3,
         entered: false,
       })
     }
 
-    let lastSpawnTime = 0
+    let lastSpawnTime = -SPAWN_INTERVAL - 100
 
     const loop = (now: number) => {
       tick = now
-      spawnAngle += 0.0009
 
       if (now - lastSpawnTime >= SPAWN_INTERVAL && bubbles.length < MAX_BUBBLES) {
-        spawnBubble()
+        do {
+          nextPoint = Math.floor(Math.random() * NUM_POINTS)
+        } while (nextPoint === lastPoint)
+        lastPoint = nextPoint
+        spawnBubble(nextPoint)
         lastSpawnTime = now
       }
 
@@ -130,7 +155,7 @@ export default function AnimatedBubbles() {
           b.entered = true
         }
 
-        const farOffScreen = b.x < -BUBBLE_RADIUS * 20 || b.x > canvas.width + BUBBLE_RADIUS * 20 || b.y < -BUBBLE_RADIUS * 20 || b.y > canvas.height + BUBBLE_RADIUS * 20
+        const farOffScreen = b.x < -BUBBLE_RADIUS * 40 || b.x > canvas.width + BUBBLE_RADIUS * 40 || b.y < -BUBBLE_RADIUS * 40 || b.y > canvas.height + BUBBLE_RADIUS * 40
         if (farOffScreen || (b.entered && (b.x > canvas.width + BUBBLE_RADIUS * 4 || b.y < -BUBBLE_RADIUS * 4 || b.y > canvas.height + BUBBLE_RADIUS * 4 || b.x < -BUBBLE_RADIUS * 4))) {
           bubbles.splice(i, 1)
         }
