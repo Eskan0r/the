@@ -68,7 +68,7 @@ export default function HeroSection() {
           <p className="hero-tagline">makin things that look like they work</p>
           <div className="hero-ctas">
             <a
-              href="www.linkedin.com/in/ronak-chavva-48b318262"
+              href="https://www.linkedin.com/in/ronak-chavva-48b318262"
               target="_blank"
               rel="noopener noreferrer"
               className="cta-primary"
