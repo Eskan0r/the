@@ -237,6 +237,7 @@ input[type=number]::-webkit-outer-spin-button { display: none; }
   align-items: center;
   gap: 8px;
   padding: 40px 60px;
+  max-width: calc(100vw - 32px);
 }
 
 .hero-content {
@@ -398,6 +399,8 @@ input[type=number]::-webkit-outer-spin-button { display: none; }
   display: block;
   text-decoration: none;
   transition: transform 0.3s ease;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .demo-wrapper:hover {
@@ -420,33 +423,103 @@ input[type=number]::-webkit-outer-spin-button { display: none; }
 
 /* Responsive */
 
-@media (max-width: 640px) {
+@media (max-width: 1024px) {
+  .hero-glass-panel {
+    padding: 32px 44px;
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-section {
+    padding: 0 16px;
+  }
+
+  .hero-glass-panel {
+    padding: 28px 32px;
+    gap: 6px;
+  }
+
   .hero-name {
-    font-size: clamp(28px, 9vw, 48px);
-    padding: 10px 20px;
+    font-size: clamp(32px, 10vw, 56px);
   }
 
   .hero-tagline {
-    font-size: clamp(13px, 4vw, 16px);
-    padding: 8px 16px;
-  }
-
-  .cta-primary {
-    padding: 10px 22px;
-    font-size: 13px;
-  }
-
-  .cta-secondary {
-    width: 40px;
-    height: 40px;
+    font-size: clamp(13px, 3.5vw, 18px);
   }
 
   .projects-section {
-    gap: 60px;
+    gap: 64px;
     padding: 60px 16px 80px;
   }
 
+  .project-slide {
+    gap: 20px;
+  }
+
   .project-title {
-    font-size: 22px;
+    font-size: 24px;
+  }
+
+  .project-desc {
+    font-size: 13px;
+  }
+
+  .demo-wrapper:hover {
+    transform: none;
+  }
+
+  /* BSG demo: hide code editor on mobile, show chat only */
+  .demo-bsg > div:first-child {
+    display: none !important;
+  }
+
+  .demo-bsg > div:last-child {
+    width: 100% !important;
+    border-left: none !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .hero-glass-panel {
+    padding: 24px 24px;
+    gap: 4px;
+  }
+
+  .hero-name {
+    font-size: clamp(28px, 11vw, 42px);
+  }
+
+  .hero-tagline {
+    font-size: 12px;
+  }
+
+  .hero-ctas {
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .cta-primary {
+    padding: 8px 18px;
+    font-size: 12px;
+    gap: 6px;
+  }
+
+  .cta-secondary {
+    width: 36px;
+    height: 36px;
+  }
+
+  .projects-section {
+    gap: 48px;
+    padding: 48px 12px 60px;
+  }
+
+  .project-title {
+    font-size: 20px;
+  }
+
+  .project-tags span {
+    font-size: 10px;
+    padding: 3px 8px;
   }
 }

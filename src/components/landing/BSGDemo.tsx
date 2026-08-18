@@ -183,7 +183,7 @@ export default function BSGDemo() {
   }, [])
 
   return (
-    <div style={{
+    <div className="demo-bsg" style={{
       width: '100%',
       aspectRatio: '16/10',
       borderRadius: '8px',
