@@ -190,7 +190,7 @@ export const COMMANDS: Record<string, CommandHandler> = {
     { text: '  https://github.com/Eskan0r', type: 'default' },
     { text: '', type: 'default' },
     { text: 'LinkedIn', type: 'accent' },
-    { text: '  https://www.linkedin.com/in/ronak-chavva-48b318262/', type: 'default' },
+    { text: 'www.linkedin.com/in/ronak-chavva-48b318262', type: 'default' },
     { text: '', type: 'default' },
     { text: 'Email', type: 'accent' },
     { text: '  ronakch8@gmail.com', type: 'default' },
