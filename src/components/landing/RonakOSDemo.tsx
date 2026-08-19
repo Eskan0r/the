@@ -7,7 +7,7 @@ const DESPAWN_MARGIN = 100
 interface Vec2 { x: number; y: number }
 
 interface SpaceObject {
-  type: 'asteroid' | 'planet' | 'debris' | 'meteor'
+  type: 'asteroid' | 'planet' | 'debris' | 'meteor' | 'comet' | 'ringedPlanet' | 'moon' | 'cow'
   pos: Vec2
   vel: Vec2
   shape: Vec2[]
@@ -17,6 +17,11 @@ interface SpaceObject {
   size: number
   swallowed: boolean
   trail?: Vec2[]
+  hasRing?: boolean
+  parentId?: number
+  orbitRadius?: number
+  orbitAngle?: number
+  orbitSpeed?: number
 }
 
 function makeAsteroidShape(size: number): Vec2[] {
@@ -36,6 +41,9 @@ function makeCircleShape(r: number, pts = 24): Vec2[] {
 }
 
 function randomSpawn(W: number, H: number): { pos: Vec2; vel: Vec2 } {
+  const bhCx = W * 0.52
+  const bhCy = H * 0.48
+
   const edge = Math.floor(Math.random() * 4)
   let pos: Vec2
   switch (edge) {
@@ -44,12 +52,25 @@ function randomSpawn(W: number, H: number): { pos: Vec2; vel: Vec2 } {
     case 2:  pos = { x: Math.random() * W, y: H + DESPAWN_MARGIN }; break
     default: pos = { x: -DESPAWN_MARGIN, y: Math.random() * H }; break
   }
-  const tx = W * (0.1 + Math.random() * 0.8)
-  const ty = H * (0.1 + Math.random() * 0.8)
-  const dx = tx - pos.x, dy = ty - pos.y
-  const len = Math.sqrt(dx * dx + dy * dy) || 1
-  const speed = 0.3 + Math.random() * 0.6
-  return { pos, vel: { x: (dx / len) * speed, y: (dy / len) * speed } }
+
+  // Direction from spawn to blackhole
+  const toBHx = bhCx - pos.x
+  const toBHy = bhCy - pos.y
+  const toBHLen = Math.sqrt(toBHx * toBHx + toBHy * toBHy) || 1
+
+  // Perpendicular (tangential) direction for orbital velocity
+  const perpX = -toBHy / toBHLen
+  const perpY = toBHx / toBHLen
+  const side = Math.random() < 0.5 ? 1 : -1
+
+  // Mix: mostly tangential, small radial component
+  const radialMix = (Math.random() - 0.3) * 0.3
+  const vx = perpX * side + (toBHx / toBHLen) * radialMix
+  const vy = perpY * side + (toBHy / toBHLen) * radialMix
+  const vLen = Math.sqrt(vx * vx + vy * vy) || 1
+  const speed = 0.6 + Math.random() * 0.8
+
+  return { pos, vel: { x: (vx / vLen) * speed, y: (vy / vLen) * speed } }
 }
 
 function makeAsteroid(W: number, H: number): SpaceObject {
@@ -124,10 +145,162 @@ function makeMeteor(W: number, H: number): SpaceObject {
   }
 }
 
+function makeComet(W: number, H: number): SpaceObject {
+  const speed = 1.5 + Math.random() * 1.5
+  const { pos, vel } = randomSpawn(W, H)
+  vel.x *= speed / 0.5; vel.y *= speed / 0.5
+  const size = 4 + Math.random() * 5
+  return {
+    type: 'comet', pos, vel,
+    shape: makeAsteroidShape(size),
+    rotation: Math.atan2(vel.y, vel.x),
+    rotationSpeed: 0, opacity: 0.85,
+    size, swallowed: false,
+    trail: [],
+  }
+}
+
+function makeRingedPlanet(W: number, H: number): SpaceObject {
+  const { pos, vel } = randomSpawn(W, H)
+  const size = 16 + Math.random() * 14
+  return {
+    type: 'ringedPlanet', pos,
+    vel: { x: vel.x * 0.45, y: vel.y * 0.45 },
+    shape: makeCircleShape(size),
+    rotation: 0, rotationSpeed: 0.002,
+    opacity: 0.4 + Math.random() * 0.3,
+    size, swallowed: false,
+    hasRing: true,
+  }
+}
+
+function makeMoon(parentObj: SpaceObject, parentIdx: number): SpaceObject {
+  const orbitRadius = parentObj.size * (1.8 + Math.random() * 1.2)
+  const size = parentObj.size * (0.18 + Math.random() * 0.12)
+  const angle = Math.random() * Math.PI * 2
+  const speed = 0.008 + Math.random() * 0.006
+  return {
+    type: 'moon',
+    pos: { x: parentObj.pos.x + Math.cos(angle) * orbitRadius, y: parentObj.pos.y + Math.sin(angle) * orbitRadius },
+    vel: { x: parentObj.vel.x, y: parentObj.vel.y },
+    shape: makeCircleShape(size),
+    rotation: 0, rotationSpeed: 0.005,
+    opacity: parentObj.opacity * 0.8,
+    size, swallowed: false,
+    parentId: parentIdx,
+    orbitRadius,
+    orbitAngle: angle,
+    orbitSpeed: Math.random() < 0.5 ? speed : -speed,
+  }
+}
+
+const COW_SHAPE: Vec2[] = [
+  { x: -14, y: -2 }, { x: -12, y: -6 }, { x: -8, y: -8 },
+  { x: -4, y: -6 }, { x: 0, y: -8 }, { x: 4, y: -6 },
+  { x: 8, y: -8 }, { x: 12, y: -6 }, { x: 14, y: -2 },
+  { x: 12, y: 2 }, { x: 10, y: 4 }, { x: 8, y: 8 },
+  { x: 6, y: 4 }, { x: 4, y: 8 }, { x: 2, y: 4 },
+  { x: -2, y: 8 }, { x: -4, y: 4 }, { x: -6, y: 8 },
+  { x: -8, y: 4 }, { x: -10, y: 2 }, { x: -12, y: 4 },
+  { x: -14, y: 2 },
+]
+
+function makeCow(W: number, H: number): SpaceObject {
+  const { pos, vel } = randomSpawn(W, H)
+  return {
+    type: 'cow', pos,
+    vel: { x: vel.x * 0.5, y: vel.y * 0.5 },
+    shape: COW_SHAPE.map(p => ({ x: p.x * 1.2, y: p.y * 1.2 })),
+    rotation: 0, rotationSpeed: 0.008,
+    opacity: 0.7,
+    size: 28, swallowed: false,
+  }
+}
+
+function makeCollisionDebris(x: number, y: number): SpaceObject[] {
+  const count = 6 + Math.floor(Math.random() * 6)
+  return Array.from({ length: count }, () => {
+    const angle = Math.random() * Math.PI * 2
+    const speed = 0.5 + Math.random() * 2
+    const size = 2 + Math.random() * 4
+    return {
+      type: 'debris' as const,
+      pos: { x: x + (Math.random() - 0.5) * 10, y: y + (Math.random() - 0.5) * 10 },
+      vel: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+      shape: [
+        { x: 0, y: -size },
+        { x: size * 0.8, y: size * 0.6 },
+        { x: -size * 0.8, y: size * 0.6 },
+      ],
+      rotation: Math.random() * Math.PI * 2,
+      rotationSpeed: (Math.random() - 0.5) * 0.03,
+      opacity: 0.3 + Math.random() * 0.3,
+      size, swallowed: false,
+    }
+  })
+}
+
 interface Star {
   x: number; y: number; size: number; opacity: number
   baseOpacity: number; twinkleSpeed: number; twinklePhase: number
   vx: number; vy: number; warm: boolean
+}
+
+interface Nebula {
+  x: number; y: number; vx: number; vy: number; radius: number
+  r: number; g: number; b: number
+  particles: {
+    ox: number; oy: number; r: number; baseOpacity: number
+    wobblePhase: number; wobbleSpeed: number; wobbleAmpX: number; wobbleAmpY: number
+  }[]
+  opacity: number
+}
+
+function makeNebula(W: number, H: number): Nebula {
+  const colors = [
+    [50, 100, 220],   // blue
+    [140, 50, 200],   // purple
+    [30, 180, 140],   // teal
+    [200, 120, 40],   // warm amber
+    [0, 255, 136],    // accent green
+  ]
+  const [r, g, b] = colors[Math.floor(Math.random() * colors.length)]
+
+  const edge = Math.floor(Math.random() * 4)
+  let x: number, y: number
+  switch (edge) {
+    case 0: x = Math.random() * W; y = -80; break
+    case 1: x = W + 80; y = Math.random() * H; break
+    case 2: x = Math.random() * W; y = H + 80; break
+    default: x = -80; y = Math.random() * H; break
+  }
+
+  const radius = 80 + Math.random() * 170
+  const count = 30 + Math.floor(Math.random() * 40)
+  const particles = Array.from({ length: count }, () => {
+    const angle = Math.random() * Math.PI * 2
+    const dist = Math.sqrt(Math.random()) * radius
+    const scaleX = 0.7 + Math.random() * 0.6
+    const scaleY = 0.7 + Math.random() * 0.6
+    return {
+      ox: Math.cos(angle) * dist * scaleX,
+      oy: Math.sin(angle) * dist * scaleY,
+      r: radius * (0.28 + Math.random() * 0.55),
+      baseOpacity: 0.03 + Math.random() * 0.06,
+      wobblePhase: Math.random() * Math.PI * 2,
+      wobbleSpeed: 0.003 + Math.random() * 0.008,
+      wobbleAmpX: 1 + Math.random() * 3,
+      wobbleAmpY: 1 + Math.random() * 3,
+    }
+  })
+
+  const tx = W * (0.15 + Math.random() * 0.7)
+  const ty = H * (0.15 + Math.random() * 0.7)
+  const dx = tx - x, dy = ty - y
+  const len = Math.sqrt(dx * dx + dy * dy) || 1
+  const speed = 0.15 + Math.random() * 0.2
+
+  return { x, y, vx: (dx / len) * speed, vy: (dy / len) * speed, radius, r, g, b, particles, opacity: 0 }
 }
 
 function makeStars(W: number, H: number): Star[] {
@@ -236,11 +409,19 @@ export default function RonakOSDemo() {
 
     let objects: SpaceObject[] = []
     for (let i = 0; i < 2; i++) objects.push(...makeDebrisGroup(W(), H()))
-    for (let i = 0; i < 3; i++) objects.push(makeAsteroid(W(), H()))
+    for (let i = 0; i < 2; i++) objects.push(makeAsteroid(W(), H()))
     objects.push(makePlanet(W(), H()))
+    objects.push(makeRingedPlanet(W(), H()))
+    objects.push(makeComet(W(), H()))
+
+    // Add a moon to the first planet
+    const firstPlanetIdx = objects.findIndex(o => o.type === 'planet')
+    if (firstPlanetIdx >= 0) objects.push(makeMoon(objects[firstPlanetIdx], firstPlanetIdx))
 
     let stars = makeStars(W(), H())
+    let nebulae: Nebula[] = [makeNebula(W(), H()), makeNebula(W(), H())]
     let lastSpawn = 0
+    let lastNebulaSpawn = 0
 
     const loop = (timestamp: number) => {
       const w = W()
@@ -260,6 +441,51 @@ export default function RonakOSDemo() {
         }
       }
 
+      // Nebulae - spawn new ones occasionally
+      if (timestamp - lastNebulaSpawn > 25000 && nebulae.length < 3) {
+        nebulae.push(makeNebula(w, h))
+        lastNebulaSpawn = timestamp
+      }
+
+      // Draw nebulae with screen compositing
+      ctx.globalCompositeOperation = 'screen'
+      nebulae = nebulae.filter(neb => {
+        // Drift
+        neb.x += neb.vx
+        neb.y += neb.vy
+
+        // Fade in
+        if (neb.opacity < 1) neb.opacity = Math.min(1, neb.opacity + 0.005)
+
+        // Fade out if offscreen
+        const margin = neb.radius * 1.2 + 100
+        if (neb.x < -margin || neb.x > w + margin || neb.y < -margin || neb.y > h + margin) {
+          neb.opacity -= 0.02
+          if (neb.opacity <= 0) return false
+        }
+
+        for (const p of neb.particles) {
+          p.wobblePhase += p.wobbleSpeed
+          const wx = Math.sin(p.wobblePhase) * p.wobbleAmpX
+          const wy = Math.cos(p.wobblePhase * 0.73) * p.wobbleAmpY
+          const px = neb.x + p.ox + wx
+          const py = neb.y + p.oy + wy
+          const a = p.baseOpacity * neb.opacity
+
+          const grad = ctx.createRadialGradient(px, py, 0, px, py, p.r)
+          grad.addColorStop(0, `rgba(${neb.r},${neb.g},${neb.b},${Math.min(1, a * 3.2)})`)
+          grad.addColorStop(0.35, `rgba(${neb.r},${neb.g},${neb.b},${Math.min(1, a * 1.4)})`)
+          grad.addColorStop(0.7, `rgba(${neb.r},${neb.g},${neb.b},${a * 0.45})`)
+          grad.addColorStop(1, `rgba(${neb.r},${neb.g},${neb.b},0)`)
+          ctx.fillStyle = grad
+          ctx.beginPath()
+          ctx.arc(px, py, p.r, 0, Math.PI * 2)
+          ctx.fill()
+        }
+        return true
+      })
+      ctx.globalCompositeOperation = 'source-over'
+
       // Stars
       stars.forEach(star => {
         star.twinklePhase += star.twinkleSpeed
@@ -277,18 +503,64 @@ export default function RonakOSDemo() {
       })
 
       // Spawn objects
-      if (timestamp - lastSpawn > 2500) {
+      if (timestamp - lastSpawn > 2000) {
         lastSpawn = timestamp
         const roll = Math.random()
-        if (roll < 0.35) objects.push(makeAsteroid(w, h))
-        else if (roll < 0.55) objects.push(...makeDebrisGroup(w, h))
-        else if (roll < 0.7) objects.push(makePlanet(w, h))
-        else if (roll < 0.85) objects.push(makeMeteor(w, h))
+        if (roll < 0.10) objects.push(makeAsteroid(w, h))
+        else if (roll < 0.22) objects.push(...makeDebrisGroup(w, h))
+        else if (roll < 0.38) {
+          const p = makePlanet(w, h)
+          objects.push(p)
+          if (Math.random() < 0.5) objects.push(makeMoon(p, objects.length - 1))
+        }
+        else if (roll < 0.50) objects.push(makeMeteor(w, h))
+        else if (roll < 0.64) objects.push(makeComet(w, h))
+        else if (roll < 0.80) {
+          const rp = makeRingedPlanet(w, h)
+          objects.push(rp)
+          if (Math.random() < 0.4) objects.push(makeMoon(rp, objects.length - 1))
+        }
+        else if (roll < 0.88) objects.push(makeCow(w, h))
         else objects.push(makeAsteroid(w, h), makeAsteroid(w, h))
       }
 
       // Update objects
-      objects = objects.filter(obj => {
+      objects = objects.filter((obj, idx) => {
+        // Moons orbit their parent
+        if (obj.type === 'moon' && obj.parentId !== undefined && obj.orbitAngle !== undefined) {
+          const parent = objects[obj.parentId]
+          if (!parent || parent.opacity <= 0) return false
+          obj.orbitAngle += obj.orbitSpeed!
+          obj.pos.x = parent.pos.x + Math.cos(obj.orbitAngle) * obj.orbitRadius!
+          obj.pos.y = parent.pos.y + Math.sin(obj.orbitAngle) * obj.orbitRadius!
+          obj.opacity = parent.opacity * 0.8
+          if (isOffscreen(obj.pos, w, h)) return false
+
+          // Draw orbit path
+          ctx.save()
+          ctx.globalAlpha = 0.1
+          ctx.strokeStyle = '#00ff88'
+          ctx.lineWidth = 0.5
+          ctx.setLineDash([3, 4])
+          ctx.beginPath()
+          ctx.arc(parent.pos.x, parent.pos.y, obj.orbitRadius!, 0, Math.PI * 2)
+          ctx.stroke()
+          ctx.setLineDash([])
+          ctx.restore()
+
+          // Draw moon
+          ctx.save()
+          ctx.globalAlpha = obj.opacity
+          ctx.translate(obj.pos.x, obj.pos.y)
+          ctx.beginPath()
+          ctx.arc(0, 0, obj.size, 0, Math.PI * 2)
+          ctx.strokeStyle = '#00ff88'
+          ctx.lineWidth = 0.8
+          ctx.stroke()
+          ctx.restore()
+          return true
+        }
+
         // Black hole gravity
         const dx = bhX() - obj.pos.x
         const dy = bhY() - obj.pos.y
@@ -301,10 +573,11 @@ export default function RonakOSDemo() {
         obj.vel.x += (dx / dist) * force
         obj.vel.y += (dy / dist) * force
 
-        // Trail for meteors
+        // Trail for meteors and comets
         if (obj.trail !== undefined) {
           obj.trail.push({ x: obj.pos.x, y: obj.pos.y })
-          if (obj.trail.length > 18) obj.trail.shift()
+          const maxTrail = obj.type === 'comet' ? 28 : 18
+          if (obj.trail.length > maxTrail) obj.trail.shift()
         }
 
         obj.pos.x += obj.vel.x
@@ -322,11 +595,54 @@ export default function RonakOSDemo() {
         if (obj.opacity <= 0) return false
         if (isOffscreen(obj.pos, w, h)) return false
 
+        // Draw trail for meteors
+        if (obj.type === 'meteor' && obj.trail && obj.trail.length > 1) {
+          ctx.save()
+          ctx.globalAlpha = obj.opacity
+          for (let i = 1; i < obj.trail.length; i++) {
+            const t = i / obj.trail.length
+            ctx.globalAlpha = obj.opacity * t * 0.5
+            ctx.strokeStyle = '#00ff88'
+            ctx.lineWidth = 0.8 * t
+            ctx.beginPath()
+            ctx.moveTo(obj.trail[i - 1].x, obj.trail[i - 1].y)
+            ctx.lineTo(obj.trail[i].x, obj.trail[i].y)
+            ctx.stroke()
+          }
+          ctx.restore()
+        }
+
+        // Draw trail for comets (wider, more prominent)
+        if (obj.type === 'comet' && obj.trail && obj.trail.length > 1) {
+          ctx.save()
+          for (let i = 1; i < obj.trail.length; i++) {
+            const t = i / obj.trail.length
+            ctx.globalAlpha = obj.opacity * t * 0.6
+            ctx.strokeStyle = '#00ff88'
+            ctx.lineWidth = 2.5 * t
+            ctx.beginPath()
+            ctx.moveTo(obj.trail[i - 1].x, obj.trail[i - 1].y)
+            ctx.lineTo(obj.trail[i].x, obj.trail[i].y)
+            ctx.stroke()
+          }
+          ctx.restore()
+        }
+
         // Draw
         ctx.save()
         ctx.globalAlpha = obj.opacity
         ctx.translate(obj.pos.x, obj.pos.y)
         ctx.rotate(obj.rotation)
+
+        // Draw ring for ringed planets
+        if (obj.hasRing) {
+          ctx.beginPath()
+          ctx.ellipse(0, 0, obj.size * 1.5, obj.size * 0.4, 0.4, 0, Math.PI * 2)
+          ctx.strokeStyle = '#00ff88'
+          ctx.lineWidth = 0.8
+          ctx.stroke()
+        }
+
         ctx.beginPath()
         ctx.moveTo(obj.shape[0].x, obj.shape[0].y)
         for (let i = 1; i < obj.shape.length; i++) ctx.lineTo(obj.shape[i].x, obj.shape[i].y)
@@ -339,7 +655,33 @@ export default function RonakOSDemo() {
         return true
       })
 
-      if (objects.length > 30) objects = objects.slice(-30)
+      if (objects.length > 50) objects = objects.slice(-50)
+
+      // Collision detection
+      const collidable = ['asteroid', 'planet', 'meteor', 'comet', 'cow']
+      const toRemove = new Set<number>()
+      const toAdd: SpaceObject[] = []
+      for (let i = 0; i < objects.length; i++) {
+        if (toRemove.has(i)) continue
+        if (!collidable.includes(objects[i].type)) continue
+        for (let j = i + 1; j < objects.length; j++) {
+          if (toRemove.has(j)) continue
+          if (!collidable.includes(objects[j].type)) continue
+          const a = objects[i], b = objects[j]
+          const dx = a.pos.x - b.pos.x
+          const dy = a.pos.y - b.pos.y
+          const dist = Math.sqrt(dx * dx + dy * dy)
+          if (dist < a.size + b.size) {
+            toRemove.add(i)
+            toRemove.add(j)
+            toAdd.push(...makeCollisionDebris((a.pos.x + b.pos.x) / 2, (a.pos.y + b.pos.y) / 2))
+          }
+        }
+      }
+      if (toRemove.size > 0) {
+        objects = objects.filter((_, i) => !toRemove.has(i))
+        objects.push(...toAdd)
+      }
 
       // Black hole glow
       const glow = ctx.createRadialGradient(bhX(), bhY(), BH_RADIUS * 0.5, bhX(), bhY(), BH_RADIUS * 3)
