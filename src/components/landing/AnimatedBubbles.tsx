@@ -84,8 +84,8 @@ export default function AnimatedBubbles() {
       const sx = -BUBBLE_RADIUS
       const sy = Math.random() * h
 
-      // Angle between 0deg (straight right) and -60deg (mostly up), biased right
-      const angle = -Math.pow(Math.random(), 3) * ((Math.PI / 3.5))
+      // Angle between 0deg (straight right) and -45deg, biased right
+      const angle = -Math.pow(Math.random(), 3) * (Math.PI / 5)
       const speed = BASE_SPEED * (0.5 + Math.random() * 1.0)
 
       bubbles.push({

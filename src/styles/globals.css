@@ -251,12 +251,13 @@ input[type=number]::-webkit-outer-spin-button { display: none; }
 }
 
 .hero-name {
-  font-size: clamp(48px, 8vw, 90px);
+  font-size: clamp(32px, 8vw, 90px);
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.1;
   margin: 0;
   color: #111;
+  white-space: nowrap;
 }
 
 .hero-tagline {
