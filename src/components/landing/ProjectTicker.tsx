@@ -33,7 +33,13 @@ function Demo({ kind, active }: { kind: Project['demo']; active: boolean }) {
   )
 }
 
-function ProjectCard({ p, interactive }: { p: Project; interactive: boolean }) {
+function ProjectCard({
+  p,
+  interactive,
+}: {
+  p: Project
+  interactive: boolean
+}) {
   const ref = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(true)
 
@@ -85,7 +91,9 @@ function Copy({ interactive }: { interactive: boolean }) {
   const cards: ReactNode[] = []
   for (let r = 0; r < REPEAT; r++) {
     for (const p of PROJECTS) {
-      cards.push(<ProjectCard key={`${p.id}-${r}`} p={p} interactive={interactive} />)
+      cards.push(
+        <ProjectCard key={`${p.id}-${r}`} p={p} interactive={interactive} />,
+      )
     }
   }
   return <>{cards}</>
