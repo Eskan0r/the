@@ -152,11 +152,12 @@ const EXAMPLES = [
   { input: 'nums = [3,2,4], target = 6', output: '[1,2]', explanation: '' },
 ]
 
-export default function BSGDemo() {
+export default function BSGDemo({ active = true }: { active?: boolean }) {
   const chatRef = useRef<HTMLDivElement>(null)
   const msgIdx = useRef(-1)
 
   useEffect(() => {
+    if (!active) return
     const timer = setTimeout(() => {
       const interval = setInterval(() => {
         if (!chatRef.current) return
@@ -204,13 +205,13 @@ export default function BSGDemo() {
           const first = chatRef.current.firstChild
           if (first) chatRef.current.removeChild(first)
         }
-      }, 1800)
+      }, 3000)
 
       return () => clearInterval(interval)
     }, 600)
 
     return () => clearTimeout(timer)
-  }, [])
+  }, [active])
 
   return (
     <div className="demo-bsg" style={{
@@ -539,22 +540,22 @@ export default function BSGDemo() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
               <RoomIcon />
-              <span style={{ fontSize: 12, color: BSG.foreground, fontFamily: 'Poppins, sans-serif', opacity: 0.6 }}>Room</span>
+              <span className="bsg-tab-label" style={{ fontSize: 12, color: BSG.foreground, fontFamily: 'Poppins, sans-serif', opacity: 0.6 }}>Room</span>
             </div>
             <div style={{ width: '1px', height: '12px', background: BSG.separator, margin: '0 4px' }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: BSG.surfaceMid, borderRadius: '5px', padding: '3px 6px' }}>
               <ChatIcon active={true} />
-              <span style={{ fontSize: 12, color: BSG.foreground, fontFamily: 'Poppins, sans-serif', fontWeight: 500 }}>Chat</span>
+              <span className="bsg-tab-label" style={{ fontSize: 12, color: BSG.foreground, fontFamily: 'Poppins, sans-serif', fontWeight: 500 }}>Chat</span>
             </div>
             <div style={{ width: '1px', height: '12px', background: BSG.separator, margin: '0 4px' }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
               <LeaderboardIcon />
-              <span style={{ fontSize: 12, color: BSG.foreground, fontFamily: 'Poppins, sans-serif', opacity: 0.6 }}>Leaderboard</span>
+              <span className="bsg-tab-label" style={{ fontSize: 12, color: BSG.foreground, fontFamily: 'Poppins, sans-serif', opacity: 0.6 }}>Leaderboard</span>
             </div>
             <div style={{ width: '1px', height: '12px', background: BSG.separator, margin: '0 4px' }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
               <StatsIcon />
-              <span style={{ fontSize: 12, color: BSG.foreground, fontFamily: 'Poppins, sans-serif', opacity: 0.6 }}>Statistics</span>
+              <span className="bsg-tab-label" style={{ fontSize: 12, color: BSG.foreground, fontFamily: 'Poppins, sans-serif', opacity: 0.6 }}>Statistics</span>
             </div>
           </div>
         </div>

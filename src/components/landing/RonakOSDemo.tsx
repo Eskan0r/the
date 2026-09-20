@@ -276,7 +276,9 @@ function makeNebula(W: number, H: number): Nebula {
   }
 
   const radius = 80 + Math.random() * 170
-  const count = 30 + Math.floor(Math.random() * 40)
+  // fewer gradient particles on narrow (mobile) canvases
+  const density = W < 500 ? 0.5 : 1
+  const count = Math.round((30 + Math.floor(Math.random() * 40)) * density)
   const particles = Array.from({ length: count }, () => {
     const angle = Math.random() * Math.PI * 2
     const dist = Math.sqrt(Math.random()) * radius
@@ -303,8 +305,8 @@ function makeNebula(W: number, H: number): Nebula {
   return { x, y, vx: (dx / len) * speed, vy: (dy / len) * speed, radius, r, g, b, particles, opacity: 0 }
 }
 
-function makeStars(W: number, H: number): Star[] {
-  return Array.from({ length: 60 }, () => ({
+function makeStars(W: number, H: number, count = 60): Star[] {
+  return Array.from({ length: count }, () => ({
     x: Math.random() * W, y: Math.random() * H,
     size: 0.3 + Math.random() * 1.4,
     opacity: Math.random(), baseOpacity: 0.2 + Math.random() * 0.5,
@@ -381,26 +383,28 @@ function drawStocksIcon(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.restore()
 }
 
-export default function RonakOSDemo() {
+export default function RonakOSDemo({ active = true }: { active?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
+    if (!active) return
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')!
     let frameId: number
 
+    let DPR = 1
     const resize = () => {
       const rect = canvas.parentElement!.getBoundingClientRect()
-      const dpr = window.devicePixelRatio || 1
-      canvas.width = rect.width * dpr
-      canvas.height = rect.height * dpr
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      DPR = Math.min(window.devicePixelRatio || 1, 2)
+      canvas.width = rect.width * DPR
+      canvas.height = rect.height * DPR
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0)
     }
     resize()
 
-    const W = () => canvas.width / (window.devicePixelRatio || 1)
-    const H = () => canvas.height / (window.devicePixelRatio || 1)
+    const W = () => canvas.width / DPR
+    const H = () => canvas.height / DPR
 
     const bhX = () => W() * 0.52
     const bhY = () => H() * 0.48
@@ -418,7 +422,7 @@ export default function RonakOSDemo() {
     const firstPlanetIdx = objects.findIndex(o => o.type === 'planet')
     if (firstPlanetIdx >= 0) objects.push(makeMoon(objects[firstPlanetIdx], firstPlanetIdx))
 
-    let stars = makeStars(W(), H())
+    let stars = makeStars(W(), H(), W() < 500 ? 28 : 60)
     let nebulae: Nebula[] = [makeNebula(W(), H()), makeNebula(W(), H())]
     let lastSpawn = 0
     let lastNebulaSpawn = 0
@@ -655,7 +659,8 @@ export default function RonakOSDemo() {
         return true
       })
 
-      if (objects.length > 50) objects = objects.slice(-50)
+      const maxObjects = w < 500 ? 30 : 50
+      if (objects.length > maxObjects) objects = objects.slice(-maxObjects)
 
       // Collision detection
       const collidable = ['asteroid', 'planet', 'meteor', 'comet', 'cow']
@@ -734,10 +739,10 @@ export default function RonakOSDemo() {
       cancelAnimationFrame(frameId)
       window.removeEventListener('resize', onResize)
     }
-  }, [])
+  }, [active])
 
   return (
-    <div style={{
+    <div className="demo-ronakos" style={{
       width: '100%',
       aspectRatio: '16/10',
       borderRadius: '10px',

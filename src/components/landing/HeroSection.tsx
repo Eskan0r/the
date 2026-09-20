@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { LiquidGlass } from '@ybouane/liquidglass'
 import AnimatedBubbles from './AnimatedBubbles'
+import CustomCursor from './CustomCursor'
 
 export default function HeroSection() {
   const rootRef = useRef<HTMLDivElement>(null)
@@ -51,8 +52,10 @@ export default function HeroSection() {
       const progress = Math.min(landingPage.scrollTop / (h * 0.8), 1)
       const heroOpacity = Math.max(1 - progress * 2, 0)
 
-      const glassPanel = document.querySelector('.hero-glass-panel') as HTMLElement
+      const glassPanel = document.querySelector('.hero-glass-panel') as HTMLElement | null
+      const heroCtas = document.querySelector('.hero-ctas') as HTMLElement | null
       if (glassPanel) glassPanel.style.opacity = String(heroOpacity)
+      if (heroCtas) heroCtas.style.opacity = String(heroOpacity)
     }
 
     landingPage.addEventListener('scroll', onScroll, { passive: true })
@@ -63,27 +66,28 @@ export default function HeroSection() {
     <section className="hero-section">
       <div className="liquid-glass-root" ref={rootRef}>
         <AnimatedBubbles />
+        <CustomCursor />
         <div className="hero-glass-panel lg-glass" ref={glassRef}>
           <h1 className="hero-name">Ronak Chavva</h1>
           <p className="hero-tagline">makin things that look like they work</p>
-          <div className="hero-ctas">
-            <a
-              href="https://www.linkedin.com/in/ronak-chavva-48b318262"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="cta-primary"
-            >
-              <LinkedInIcon /> LinkedIn
-            </a>
-            <a
-              href="https://github.com/Eskan0r"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="cta-secondary"
-            >
-              <GitHubIcon />
-            </a>
-          </div>
+        </div>
+        <div className="hero-ctas">
+          <a
+            href="https://www.linkedin.com/in/ronak-chavva-48b318262"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="cta-primary"
+          >
+            <LinkedInIcon /> LinkedIn
+          </a>
+          <a
+            href="https://github.com/Eskan0r"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="cta-secondary"
+          >
+            <GitHubIcon />
+          </a>
         </div>
       </div>
     </section>
