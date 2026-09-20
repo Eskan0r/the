@@ -152,11 +152,12 @@ const EXAMPLES = [
   { input: 'nums = [3,2,4], target = 6', output: '[1,2]', explanation: '' },
 ]
 
-export default function BSGDemo() {
+export default function BSGDemo({ active = true }: { active?: boolean }) {
   const chatRef = useRef<HTMLDivElement>(null)
   const msgIdx = useRef(-1)
 
   useEffect(() => {
+    if (!active) return
     const timer = setTimeout(() => {
       const interval = setInterval(() => {
         if (!chatRef.current) return
@@ -204,13 +205,13 @@ export default function BSGDemo() {
           const first = chatRef.current.firstChild
           if (first) chatRef.current.removeChild(first)
         }
-      }, 1800)
+      }, 3000)
 
       return () => clearInterval(interval)
     }, 600)
 
     return () => clearTimeout(timer)
-  }, [])
+  }, [active])
 
   return (
     <div className="demo-bsg" style={{

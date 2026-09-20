@@ -383,10 +383,11 @@ function drawStocksIcon(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.restore()
 }
 
-export default function RonakOSDemo() {
+export default function RonakOSDemo({ active = true }: { active?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
+    if (!active) return
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')!
@@ -738,7 +739,7 @@ export default function RonakOSDemo() {
       cancelAnimationFrame(frameId)
       window.removeEventListener('resize', onResize)
     }
-  }, [])
+  }, [active])
 
   return (
     <div className="demo-ronakos" style={{

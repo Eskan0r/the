@@ -332,42 +332,67 @@ input[type=number]::-webkit-outer-spin-button { display: none; }
   transform: translateY(-1px);
 }
 
-/* Projects Section */
+/* Project ticker ("The Wire") */
 
 .projects-section {
   position: relative;
   z-index: 3;
   background: #ffffff;
-  min-height: 100vh;
-  padding: 80px 24px 120px;
-  display: flex;
-  flex-direction: column;
-  gap: 80px;
+  padding: 72px 0 110px;
+  overflow: hidden;
 }
 
-.project-slide {
-  max-width: 900px;
-  margin: 0 auto;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+.ticker-viewport {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent, black 7%, black 93%, transparent);
+  mask-image: linear-gradient(to right, transparent, black 7%, black 93%, transparent);
 }
 
-.project-info {
+.ticker-track {
+  display: flex;
+  width: max-content;
+  animation: ticker-scroll var(--ticker-duration, 40s) linear infinite;
+  will-change: transform;
+}
+
+.ticker-viewport:hover .ticker-track,
+.ticker-viewport:focus-within .ticker-track,
+.ticker-viewport.is-touching .ticker-track {
+  animation-play-state: paused;
+}
+
+@keyframes ticker-scroll {
+  to { transform: translateX(-50%); }
+}
+
+.ticker-card {
+  flex: 0 0 auto;
+  width: min(480px, 78vw);
+  margin-right: 28px;
+  color: inherit;
+}
+
+.ticker-card a {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.ticker-info {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  padding: 14px 2px 0;
 }
 
-.project-badge {
+.ticker-badge {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.1em;
 }
 
-.project-title {
+.ticker-title {
   font-size: 28px;
   font-weight: 700;
   color: #111;
@@ -375,21 +400,21 @@ input[type=number]::-webkit-outer-spin-button { display: none; }
   letter-spacing: -0.02em;
 }
 
-.project-desc {
+.ticker-desc {
   font-size: 14px;
   color: #666;
   margin: 0;
   line-height: 1.5;
 }
 
-.project-tags {
+.ticker-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 4px;
 }
 
-.project-tags span {
+.ticker-tags span {
   font-size: 11px;
   padding: 4px 10px;
   background: #f0f0f0;
@@ -398,30 +423,48 @@ input[type=number]::-webkit-outer-spin-button { display: none; }
   font-family: 'JetBrains Mono', monospace;
 }
 
-.demo-wrapper {
-  display: block;
-  text-decoration: none;
-  transition: transform 0.3s ease;
-  max-width: 100%;
-  overflow: hidden;
-}
-
-.demo-wrapper:hover {
-  transform: scale(1.01);
-}
-
-.next-section {
-  min-height: 40vh;
+.ticker-poster {
+  aspect-ratio: 16 / 10;
+  border-radius: 8px;
+  border: 1px solid #e5e5e5;
+  background: linear-gradient(135deg, #f6f6f6, #e9e9e9);
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
 }
 
-.next-section-text {
-  font-size: 14px;
-  color: #999;
+.ticker-poster-text {
   font-family: 'JetBrains Mono', monospace;
-  letter-spacing: 0.05em;
+  font-size: 13px;
+  color: #999;
+  letter-spacing: 0.1em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+    animation: none;
+    display: grid;
+    grid-template-columns: min(480px, 100%);
+    justify-content: center;
+    gap: 40px;
+    width: auto;
+    padding: 0 24px;
+  }
+
+  .ticker-card {
+    width: auto;
+    margin-right: 0;
+  }
+
+  .ticker-copy-dup {
+    display: none;
+  }
+
+  .ticker-viewport {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
 }
 
 /* Responsive */
@@ -451,24 +494,7 @@ input[type=number]::-webkit-outer-spin-button { display: none; }
   }
 
   .projects-section {
-    gap: 64px;
-    padding: 60px 16px 80px;
-  }
-
-  .project-slide {
-    gap: 20px;
-  }
-
-  .project-title {
-    font-size: 24px;
-  }
-
-  .project-desc {
-    font-size: 13px;
-  }
-
-  .demo-wrapper:hover {
-    transform: none;
+    padding: 56px 0 80px;
   }
 
   /* BSG demo: hide code editor on mobile, show chat only */
@@ -528,15 +554,18 @@ input[type=number]::-webkit-outer-spin-button { display: none; }
   }
 
   .projects-section {
-    gap: 48px;
-    padding: 48px 12px 60px;
+    padding: 44px 0 64px;
   }
 
-  .project-title {
+  .ticker-card {
+    margin-right: 20px;
+  }
+
+  .ticker-title {
     font-size: 20px;
   }
 
-  .project-tags span {
+  .ticker-tags span {
     font-size: 10px;
     padding: 3px 8px;
   }
