@@ -377,6 +377,42 @@ export default function AnimatedBubbles({
       }
     }
 
+    // Click-to-poke: a click anywhere on the hero fires a radial
+    // velocity kick from that point. The springs turn it into a
+    // scatter + slosh-back on their own. No preventDefault — links
+    // still work; they just poke on the way out.
+    const onPoke = (e: PointerEvent) => {
+      const hero = document.querySelector('.hero-section')
+      const r = hero?.getBoundingClientRect()
+      if (!r) return
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) {
+        return
+      }
+      const vw = window.innerWidth
+      const vh = window.innerHeight
+      const mx = (e.clientX - vw / 2) / vh
+      const my = (vh / 2 - e.clientY) / vh
+      const t = (performance.now() / 1000) * speed
+      const sim = computeAnchors(t, vw, vh)
+      for (let i = 0; i < 5; i++) {
+        const b = simBlobs[i]
+        const a = sim.blobs[i]
+        let dx = a.x + b.ox - mx
+        let dy = a.y + b.oy - my
+        let dist = Math.hypot(dx, dy)
+        if (dist < 0.05) {
+          const ra = Math.random() * Math.PI * 2
+          dx = Math.cos(ra)
+          dy = Math.sin(ra)
+          dist = 0.05
+        }
+        const kick = 1.2 * Math.exp(-((dist * dist) / (0.45 * 0.45)))
+        b.vx += (dx / dist) * kick
+        b.vy += (dy / dist) * kick
+      }
+    }
+    window.addEventListener('pointerdown', onPoke)
+
     let rafId = 0
     let running = true
     const startMs = performance.now()
@@ -430,6 +466,7 @@ export default function AnimatedBubbles({
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerup', onPointerUp)
       window.removeEventListener('pointercancel', onPointerUp)
+      window.removeEventListener('pointerdown', onPoke)
       document.removeEventListener('visibilitychange', onVis)
       document.documentElement.removeEventListener('pointerleave', onPointerLeave)
       canvas.removeEventListener('webglcontextlost', onContextLost)
