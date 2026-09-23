@@ -52,10 +52,10 @@ export default function HeroSection() {
       const progress = Math.min(landingPage.scrollTop / (h * 0.8), 1)
       const heroOpacity = Math.max(1 - progress * 2, 0)
 
-      const glassPanel = document.querySelector('.hero-glass-panel') as HTMLElement | null
-      const heroCtas = document.querySelector('.hero-ctas') as HTMLElement | null
-      if (glassPanel) glassPanel.style.opacity = String(heroOpacity)
-      if (heroCtas) heroCtas.style.opacity = String(heroOpacity)
+      const heroEls = document.querySelectorAll('.hero-glass-panel, .hero-ctas')
+      heroEls.forEach((el) => {
+        ;(el as HTMLElement).style.opacity = String(heroOpacity)
+      })
     }
 
     landingPage.addEventListener('scroll', onScroll, { passive: true })

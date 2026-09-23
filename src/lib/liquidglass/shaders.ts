@@ -114,6 +114,12 @@ uniform float u_shadowAlpha;
 uniform float u_shadowSpread;
 uniform float u_shadowOffY;
 uniform float u_bevelMode;
+uniform float u_time;        // seconds, for the water edge
+uniform float u_flowAmp;     // water-edge wobble amplitude, px (device)
+uniform float u_flowSpeed;
+uniform float u_flowSeed;
+uniform vec2 u_mouse;        // pointer, panel-local device px (y-down)
+uniform float u_mouseAmp;    // mouse dent strength, px (device)
 
 varying vec2 v_localPx;
 varying vec2 v_screenUV;
@@ -122,6 +128,21 @@ varying vec2 v_screenUV;
 float rrSDF(vec2 p, vec2 b, float r) {
 	vec2 q = abs(p) - b + vec2(r);
 	return min(max(q.x, q.y), 0.0) + length(max(q, vec2(0.0))) - r;
+}
+
+// Water-edge SDF: rounded rect + animated angular wobble + pointer
+// dent. All shape taps (mask, normals, shadow) go through here so
+// lighting follows the liquid. Amplitudes are small by design —
+// content padding keeps text clear of the moving edge.
+float glassSDF(vec2 p, vec2 b, float r) {
+	float base = rrSDF(p, b, r);
+	float ang = atan(p.y, p.x);
+	float t = u_time * u_flowSpeed + u_flowSeed;
+	float wob = sin(ang * 3.0 + t * 0.9) * 0.6
+		+ sin(ang * 5.0 - t * 0.7 + 1.3) * 0.4;
+	vec2 md = p - u_mouse;
+	float dent = exp(-dot(md, md) / (2.0 * 110.0 * 110.0));
+	return base + wob * u_flowAmp + dent * u_mouseAmp;
 }
 
 // Bevel height field.
@@ -143,11 +164,11 @@ float hash(vec2 p) {
 void main() {
 	vec2 half_ = u_size * 0.5;
 	float r = min(u_radius, min(half_.x, half_.y));
-	float sdf = rrSDF(v_localPx, half_, r);
+	float sdf = glassSDF(v_localPx, half_, r);
 
 	// ── Shadow (outside panel, offset by shadowOffY) ──
 	if (sdf > 0.0) {
-		float sdfShadow = rrSDF(v_localPx - vec2(0.0, u_shadowOffY), half_, r);
+		float sdfShadow = glassSDF(v_localPx - vec2(0.0, u_shadowOffY), half_, r);
 		float d = max(sdfShadow - 1.0, 0.0);
 		float spread = max(u_shadowSpread, 1.0);
 		float falloff = 1.0 / (spread * spread);
@@ -169,10 +190,10 @@ void main() {
 	float zR = u_zRadius;
 	float e = 2.0;
 	float dC = inside;
-	float dR = -rrSDF(v_localPx + vec2(e, 0.0), half_, r);
-	float dL = -rrSDF(v_localPx - vec2(e, 0.0), half_, r);
-	float dU = -rrSDF(v_localPx + vec2(0.0, e), half_, r);
-	float dD = -rrSDF(v_localPx - vec2(0.0, e), half_, r);
+	float dR = -glassSDF(v_localPx + vec2(e, 0.0), half_, r);
+	float dL = -glassSDF(v_localPx - vec2(e, 0.0), half_, r);
+	float dU = -glassSDF(v_localPx + vec2(0.0, e), half_, r);
+	float dD = -glassSDF(v_localPx - vec2(0.0, e), half_, r);
 	float hC = bevelHeight(dC, zR);
 	float hR = bevelHeight(dR, zR);
 	float hL = bevelHeight(dL, zR);

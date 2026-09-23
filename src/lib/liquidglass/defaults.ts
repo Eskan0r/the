@@ -48,6 +48,21 @@ export interface GlassConfig {
 	 * for a perfect half-sphere magnifier effect).
 	 */
 	bevelMode: number;
+	/**
+	 * Water-edge wobble amplitude in CSS pixels (0 = classic static
+	 * rounded rect). Small values (4-8) read as living water;
+	 * keep well below content padding so text never clips.
+	 */
+	flowAmp: number;
+	/** Water-edge animation speed multiplier. */
+	flowSpeed: number;
+	/** Per-element phase offset for the water edge (vary between glasses). */
+	flowSeed: number;
+	/**
+	 * Mouse dent strength in CSS pixels (0 = off). Carves a hollow
+	 * in the glass edge where the pointer passes.
+	 */
+	mouseAmp: number;
 }
 
 export const DEFAULTS: GlassConfig = {
@@ -70,6 +85,10 @@ export const DEFAULTS: GlassConfig = {
 	floating: false,
 	button: false,
 	bevelMode: 0,
+	flowAmp: 6,
+	flowSpeed: 1,
+	flowSeed: 0,
+	mouseAmp: 12,
 };
 
 /** Number of Gaussian blur passes (higher = smoother but slower) */

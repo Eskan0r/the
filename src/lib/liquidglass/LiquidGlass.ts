@@ -169,6 +169,10 @@ export class LiquidGlass {
 	private readonly _onPointerDown: (e: PointerEvent) => void;
 	private readonly _onPointerMove: (e: PointerEvent) => void;
 	private readonly _onPointerUp: (e: PointerEvent) => void;
+	private readonly _onFlowPointerMove: (e: PointerEvent) => void;
+	private readonly _onFlowPointerLeave: () => void;
+	/** Last known pointer position (viewport CSS px) for the water edge. */
+	private _flowPointer = { x: -9999, y: -9999 };
 
 	// ────────────────────────────────────────────
 	// Constructor (prefer LiquidGlass.init)
@@ -206,6 +210,14 @@ export class LiquidGlass {
 		this._onPointerDown = this._handlePointerDown.bind(this);
 		this._onPointerMove = this._handlePointerMove.bind(this);
 		this._onPointerUp = this._handlePointerUp.bind(this);
+		this._onFlowPointerMove = (e: PointerEvent) => {
+			this._flowPointer.x = e.clientX;
+			this._flowPointer.y = e.clientY;
+		};
+		this._onFlowPointerLeave = () => {
+			this._flowPointer.x = -9999;
+			this._flowPointer.y = -9999;
+		};
 	}
 
 	// ────────────────────────────────────────────
@@ -237,6 +249,8 @@ export class LiquidGlass {
 		this.root.addEventListener('pointerdown', this._onPointerDown);
 		window.addEventListener('pointermove', this._onPointerMove);
 		window.addEventListener('pointerup', this._onPointerUp);
+		window.addEventListener('pointermove', this._onFlowPointerMove);
+		document.documentElement.addEventListener('pointerleave', this._onFlowPointerLeave);
 
 		this._observer = new MutationObserver(() => {
 			// Structural mutation: painting order may have shifted,
@@ -292,6 +306,8 @@ export class LiquidGlass {
 		this.root.removeEventListener('pointerdown', this._onPointerDown);
 		window.removeEventListener('pointermove', this._onPointerMove);
 		window.removeEventListener('pointerup', this._onPointerUp);
+		window.removeEventListener('pointermove', this._onFlowPointerMove);
+		document.documentElement.removeEventListener('pointerleave', this._onFlowPointerLeave);
 
 		this._observer?.disconnect();
 		this._observer = null;
@@ -1098,11 +1114,20 @@ export class LiquidGlass {
 				config.blurAmount,
 			);
 			this.renderer.clear();
+			// Water edge inputs: wall-clock seconds + pointer position in
+			// panel-local CSS px (y-down, matching v_localPx). Parked far
+			// offscreen when the pointer has left the window.
+			const timeSec = performance.now() / 1000;
+			const mouseLX = this._flowPointer.x - (elRect.left + elRect.width / 2);
+			const mouseLY = this._flowPointer.y - (elRect.top + elRect.height / 2);
 			this.renderer.renderGlassPanel(
 				config,
 				elW,
 				elH,
 				dpr,
+				timeSec,
+				mouseLX,
+				mouseLY,
 			);
 
 			const ctx = glassCanvas.getContext('2d')!;
