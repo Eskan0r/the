@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { LiquidGlass } from '@ybouane/liquidglass'
+import { LiquidGlass } from '../../lib/liquidglass'
 import AnimatedBubbles from './AnimatedBubbles'
 import CustomCursor from './CustomCursor'
 
