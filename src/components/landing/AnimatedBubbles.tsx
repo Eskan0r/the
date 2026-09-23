@@ -239,12 +239,15 @@ export default function AnimatedBubbles({
     let pushTarget = 0
     let spush = 0
     let prevMs = -1
+    let interacted = false
+    let bootMs = -1
     const onPointerMove = (e: PointerEvent) => {
       const vw = window.innerWidth
       const vh = window.innerHeight
       tmx = (e.clientX - vw / 2) / vh
       tmy = (vh / 2 - e.clientY) / vh
       pushTarget = 1
+      interacted = true
     }
     const onPointerLeave = () => {
       pushTarget = 0
@@ -294,6 +297,21 @@ export default function AnimatedBubbles({
       const w = canvas.width
       const h = canvas.height
       if (w === 0 || h === 0) return
+      // scripted first nudge: if the visitor hasn't touched anything
+      // ~1.2s after load, sweep an invisible finger through the rings
+      // once so the page winks and teaches that it's alive. Never
+      // repeats; any real pointer input cancels it permanently.
+      if (bootMs < 0) bootMs = timeMs
+      if (!interacted) {
+        const age = timeMs - bootMs
+        if (age > 1200 && age < 3400) {
+          const p = (age - 1200) / 2200
+          const e = p * p * (3 - 2 * p)
+          tmx = -0.55 + 1.1 * e
+          tmy = 0.12 * Math.sin(p * Math.PI * 2)
+          pushTarget = Math.sin(p * Math.PI)
+        }
+      }
       // smooth cursor: fast follow for position, slow fade for strength
       const dt = prevMs < 0 ? 0 : Math.min((timeMs - prevMs) / 1000, 0.05)
       prevMs = timeMs
