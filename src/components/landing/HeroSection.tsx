@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { LiquidGlass } from '../../lib/liquidglass'
+import { gsap, prefersReducedMotion } from '../../lib/motion/gsap'
 import AnimatedBubbles from './AnimatedBubbles'
-import CustomCursor from './CustomCursor'
+import MagneticButton from './MagneticButton'
 
 export default function HeroSection() {
   const rootRef = useRef<HTMLDivElement>(null)
@@ -30,64 +31,70 @@ export default function HeroSection() {
     })
 
     let instance: Awaited<ReturnType<typeof LiquidGlass.init>> | null = null
+    let cancelled = false
 
     LiquidGlass.init({
       root: rootRef.current,
       glassElements: [glassRef.current],
     }).then((inst) => {
+      if (cancelled) {
+        inst.destroy()
+        return
+      }
       instance = inst
     })
 
     return () => {
+      cancelled = true
       instance?.destroy()
     }
   }, [])
 
+  // Cinematic hero exit: foreground content dissolves as the next
+  // section rises over the hero.
   useEffect(() => {
-    const landingPage = document.querySelector('.landing-page')
-    if (!landingPage) return
+    if (prefersReducedMotion()) return
 
-    const onScroll = () => {
-      const h = landingPage.clientHeight
-      const progress = Math.min(landingPage.scrollTop / (h * 0.8), 1)
-      const heroOpacity = Math.max(1 - progress * 2, 0)
-
-      const heroEls = document.querySelectorAll('.hero-glass-panel, .hero-ctas')
-      heroEls.forEach((el) => {
-        ;(el as HTMLElement).style.opacity = String(heroOpacity)
+    const ctx = gsap.context(() => {
+      gsap.to('.hero-glass-panel, .hero-ctas', {
+        autoAlpha: 0,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: '.hero-section',
+          start: 'top top',
+          end: 'bottom 30%',
+          scrub: true,
+        },
       })
-    }
+    })
 
-    landingPage.addEventListener('scroll', onScroll, { passive: true })
-    return () => landingPage.removeEventListener('scroll', onScroll)
+    return () => ctx.revert()
   }, [])
 
   return (
     <section className="hero-section">
       <div className="liquid-glass-root" ref={rootRef}>
         <AnimatedBubbles />
-        <CustomCursor />
         <div className="hero-glass-panel lg-glass" ref={glassRef}>
           <h1 className="hero-name">Ronak Chavva</h1>
-          <p className="hero-tagline">makin things that look like they work</p>
+          <p className="hero-tagline">Full-stack software engineer</p>
         </div>
         <div className="hero-ctas">
-          <a
+          <MagneticButton
             href="https://www.linkedin.com/in/ronak-chavva-48b318262"
             target="_blank"
-            rel="noopener noreferrer"
             className="cta-primary"
           >
             <LinkedInIcon /> LinkedIn
-          </a>
-          <a
+          </MagneticButton>
+          <MagneticButton
             href="https://github.com/Eskan0r"
             target="_blank"
-            rel="noopener noreferrer"
             className="cta-secondary"
+            ariaLabel="GitHub profile"
           >
             <GitHubIcon />
-          </a>
+          </MagneticButton>
         </div>
       </div>
     </section>

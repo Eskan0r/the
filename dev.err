@@ -1,0 +1,146 @@
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+[2m12:02:13 AM[22m [31m[1m[vite][22m[39m Pre-transform error: C:\Users\ronak\source\repos\actualProjects\the\src\components\landing\DeepRacerDemo.tsx: Expecting Unicode escape sequence \uXXXX. (269:37)
+
+[0m [90m 267 |[39m     [36mlet[39m running [33m=[39m [36mtrue[39m
+ [90m 268 |[39m     [36mlet[39m last [33m=[39m performance[33m.[39mnow()
+[31m[1m>[22m[39m[90m 269 |[39m     [36mconst[39m frame [33m=[39m (now[33m:[39m number) [33m=>[39m {[37m[41m[1m\[22m[49m[39mn      
+ [90m     |[39m                                      [31m[1m^[22m[39m
+ [90m 270 |[39m       [36mif[39m ([33m![39mrunning) [36mreturn[39m
+ [90m 271 |[39m       raf [33m=[39m requestAnimationFrame(frame)
+ [90m 272 |[39m       [36mconst[39m dt [33m=[39m [33mMath[39m[33m.[39mmin([33mMath[39m[33m.[39mmax((now [33m-[39m last) [33m/[39m [35m1000[39m[33m,[39m [35m0[39m)[33m,[39m [35m1[39m [33m/[39m [35m30[39m)[0m
+[2m12:02:14 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: C:\Users\ronak\source\repos\actualProjects\the\src\components\landing\DeepRacerDemo.tsx: Expecting Unicode escape sequence \uXXXX. (269:37)
+
+[0m [90m 267 |[31m     [36mlet[31m running [33m=[31m [36mtrue[31m
+ [90m 268 |[31m     [36mlet[31m last [33m=[31m performance[33m.[31mnow()
+[31m[1m>[22m[31m[90m 269 |[31m     [36mconst[31m frame [33m=[31m (now[33m:[31m number) [33m=>[31m {[37m[41m[1m\[22m[49m[31mn      
+ [90m     |[31m                                      [31m[1m^[22m[31m
+ [90m 270 |[31m       [36mif[31m ([33m![31mrunning) [36mreturn[31m
+ [90m 271 |[31m       raf [33m=[31m requestAnimationFrame(frame)
+ [90m 272 |[31m       [36mconst[31m dt [33m=[31m [33mMath[31m[33m.[31mmin([33mMath[31m[33m.[31mmax((now [33m-[31m last) [33m/[31m [35m1000[31m[33m,[31m [35m0[31m)[33m,[31m [35m1[31m [33m/[31m [35m30[31m)[0m[39m
+  Plugin: [35mvite:react-babel[39m
+  File: [36mC:/Users/ronak/source/repos/actualProjects/the/src/components/landing/DeepRacerDemo.tsx[39m:269:37
+[33m  267|      let running = true
+  268|      let last = performance.now()
+  269|      const frame = (now: number) => {\n      
+     |                                       ^
+  270|        if (!running) return
+  271|        raf = requestAnimationFrame(frame)[39m
+      at constructor (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:365:19)
+      at TypeScriptParserMixin.raise (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:6599:19)
+      at TypeScriptParserMixin.readWord1 (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:6559:16)
+      at TypeScriptParserMixin.readWord (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:6579:23)
+      at TypeScriptParserMixin.getTokenFromCode (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:6298:14)
+      at TypeScriptParserMixin.getTokenFromCode (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:4797:11)
+      at TypeScriptParserMixin.getTokenFromCode (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:9987:11)
+      at TypeScriptParserMixin.nextToken (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:5782:10)
+      at TypeScriptParserMixin.next (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:5692:10)
+      at TypeScriptParserMixin.eat (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:5696:12)
+      at TypeScriptParserMixin.expect (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:6898:15)
+      at TypeScriptParserMixin.parseBlock (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:13293:10)
+      at TypeScriptParserMixin.parseFunctionBody (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:12100:24)
+      at TypeScriptParserMixin.parseArrowExpression (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:12075:10)
+      at TypeScriptParserMixin.parseParenAndDistinguishExpression (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:11687:12)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:11331:23)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:4764:20)
+      at TypeScriptParserMixin.parseExprSubscripts (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:11081:23)
+      at TypeScriptParserMixin.parseUpdate (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:11066:21)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:11046:23)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:9837:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:10899:61)
+      at TypeScriptParserMixin.parseExprOps (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:10904:23)
+      at TypeScriptParserMixin.parseMaybeConditional (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:10881:23)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:10831:21)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:9786:20)
+      at C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:10800:39
+      at TypeScriptParserMixin.allowInAnd (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:12421:16)
+      at TypeScriptParserMixin.parseMaybeAssignAllowIn (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:10800:17)
+      at TypeScriptParserMixin.parseVar (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:13384:91)
+      at TypeScriptParserMixin.parseVarStatement (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:13230:10)
+      at TypeScriptParserMixin.parseVarStatement (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:9408:31)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:12851:23)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:9508:18)
+      at TypeScriptParserMixin.parseStatementLike (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:12767:17)
+      at TypeScriptParserMixin.parseStatementListItem (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:12747:17)
+      at TypeScriptParserMixin.parseBlockOrModuleBlockBody (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:13316:61)
+      at TypeScriptParserMixin.parseBlockBody (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:13309:10)
+      at TypeScriptParserMixin.parseBlock (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:13297:10)
+      at TypeScriptParserMixin.parseFunctionBody (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:12100:24)
+      at TypeScriptParserMixin.parseArrowExpression (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:12075:10)
+      at TypeScriptParserMixin.parseParenAndDistinguishExpression (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:11687:12)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:11331:23)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:4764:20)
+      at TypeScriptParserMixin.parseExprSubscripts (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:11081:23)
+      at TypeScriptParserMixin.parseUpdate (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:11066:21)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:11046:23)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:9837:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:10899:61)
+      at TypeScriptParserMixin.parseExprOps (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:10904:23)
+[2m12:04:42 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: C:\Users\ronak\source\repos\actualProjects\the\src\components\landing\DeepRacerDemo.tsx: Expecting Unicode escape sequence \uXXXX. (269:37)
+
+[0m [90m 267 |[31m     [36mlet[31m running [33m=[31m [36mtrue[31m
+ [90m 268 |[31m     [36mlet[31m last [33m=[31m performance[33m.[31mnow()
+[31m[1m>[22m[31m[90m 269 |[31m     [36mconst[31m frame [33m=[31m (now[33m:[31m number) [33m=>[31m {[37m[41m[1m\[22m[49m[31mn      
+ [90m     |[31m                                      [31m[1m^[22m[31m
+ [90m 270 |[31m       [36mif[31m ([33m![31mrunning) [36mreturn[31m
+ [90m 271 |[31m       raf [33m=[31m requestAnimationFrame(frame)
+ [90m 272 |[31m       [36mconst[31m dt [33m=[31m [33mMath[31m[33m.[31mmin([33mMath[31m[33m.[31mmax((now [33m-[31m last) [33m/[31m [35m1000[31m[33m,[31m [35m0[31m)[33m,[31m [35m1[31m [33m/[31m [35m30[31m)[0m[39m
+  Plugin: [35mvite:react-babel[39m
+  File: [36mC:/Users/ronak/source/repos/actualProjects/the/src/components/landing/DeepRacerDemo.tsx[39m:269:37
+[33m  267|      let running = true
+  268|      let last = performance.now()
+  269|      const frame = (now: number) => {\n      
+     |                                       ^
+  270|        if (!running) return
+  271|        raf = requestAnimationFrame(frame)[39m
+      at constructor (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:365:19)
+      at TypeScriptParserMixin.raise (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:6599:19)
+      at TypeScriptParserMixin.readWord1 (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:6559:16)
+      at TypeScriptParserMixin.readWord (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:6579:23)
+      at TypeScriptParserMixin.getTokenFromCode (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:6298:14)
+      at TypeScriptParserMixin.getTokenFromCode (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:4797:11)
+      at TypeScriptParserMixin.getTokenFromCode (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:9987:11)
+      at TypeScriptParserMixin.nextToken (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:5782:10)
+      at TypeScriptParserMixin.next (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:5692:10)
+      at TypeScriptParserMixin.eat (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:5696:12)
+      at TypeScriptParserMixin.expect (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:6898:15)
+      at TypeScriptParserMixin.parseBlock (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:13293:10)
+      at TypeScriptParserMixin.parseFunctionBody (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:12100:24)
+      at TypeScriptParserMixin.parseArrowExpression (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:12075:10)
+      at TypeScriptParserMixin.parseParenAndDistinguishExpression (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:11687:12)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:11331:23)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:4764:20)
+      at TypeScriptParserMixin.parseExprSubscripts (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:11081:23)
+      at TypeScriptParserMixin.parseUpdate (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:11066:21)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:11046:23)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:9837:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:10899:61)
+      at TypeScriptParserMixin.parseExprOps (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:10904:23)
+      at TypeScriptParserMixin.parseMaybeConditional (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:10881:23)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:10831:21)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:9786:20)
+      at C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:10800:39
+      at TypeScriptParserMixin.allowInAnd (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:12421:16)
+      at TypeScriptParserMixin.parseMaybeAssignAllowIn (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:10800:17)
+      at TypeScriptParserMixin.parseVar (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:13384:91)
+      at TypeScriptParserMixin.parseVarStatement (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:13230:10)
+      at TypeScriptParserMixin.parseVarStatement (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:9408:31)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:12851:23)
+      at TypeScriptParserMixin.parseStatementContent (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:9508:18)
+      at TypeScriptParserMixin.parseStatementLike (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:12767:17)
+      at TypeScriptParserMixin.parseStatementListItem (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:12747:17)
+      at TypeScriptParserMixin.parseBlockOrModuleBlockBody (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:13316:61)
+      at TypeScriptParserMixin.parseBlockBody (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:13309:10)
+      at TypeScriptParserMixin.parseBlock (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:13297:10)
+      at TypeScriptParserMixin.parseFunctionBody (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:12100:24)
+      at TypeScriptParserMixin.parseArrowExpression (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:12075:10)
+      at TypeScriptParserMixin.parseParenAndDistinguishExpression (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:11687:12)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:11331:23)
+      at TypeScriptParserMixin.parseExprAtom (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:4764:20)
+      at TypeScriptParserMixin.parseExprSubscripts (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:11081:23)
+      at TypeScriptParserMixin.parseUpdate (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:11066:21)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:11046:23)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:9837:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:10899:61)
+      at TypeScriptParserMixin.parseExprOps (C:\Users\ronak\source\repos\actualProjects\the\node_modules\@babel\parser\lib\index.js:10904:23)

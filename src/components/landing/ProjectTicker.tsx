@@ -1,83 +1,79 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
 import BSGDemo from './BSGDemo'
 import RonakOSDemo from './RonakOSDemo'
+import DeepRacerDemo from './DeepRacerDemo'
+import DnsDemo from './DnsDemo'
+import RoflowDemo from './RoflowDemo'
+import SentenceDemo from './SentenceDemo'
+import SlackBotDemo from './SlackBotDemo'
+import TohDemo from './TohDemo'
 import { PROJECTS, type Project } from '../../data/projects'
+import { prefersReducedMotion } from '../../lib/motion/gsap'
 
 /* ─────────────────────────────────────────────────────────────
    "The Wire" — infinite project ticker (right to left).
 
-   - Track holds two identical halves; translating -50% loops
-     seamlessly. Gap lives INSIDE cards (margin-right) so both
-     halves stay pixel-identical (no seam twitch).
-   - Duration is measured from content width → constant px/s
-     no matter how many projects get added.
-   - Pauses on hover, keyboard focus, and touch-hold. The dup
-     half is aria-hidden and non-interactive (no double tab
-     stops / announcements).
-   - Each card's live sim only runs while the card is on screen
-     (IntersectionObserver → demo `active` prop).
-   - Reduced motion: static stacked grid, dup half hidden.
+   Motion is driven in JS (requestAnimationFrame) so the end arrows can
+   advance exactly one project and the cards can squash-and-stretch on a
+   travelling wave. The track holds two identical halves; the offset wraps
+   at half-width for a seamless loop.
+
+   - Pauses on hover, keyboard focus, and touch-hold.
+   - End arrows step one card at a time (no speed-up).
+   - Each card has a staggered squash-and-stretch bob for a bouncy feel.
+   - Reduced motion: static stacked grid.
    ───────────────────────────────────────────────────────────── */
 
-const SPEED_PX_S = 70
-// repeat the set enough times that one half always exceeds the viewport
-const REPEAT = 4
+const SPEED_PX_S = 70 // idle drift speed
+const NAV_PX_S = 760 // speed while an arrow is advancing one project
 
 function Demo({ kind, active }: { kind: Project['demo']; active: boolean }) {
   if (kind === 'bsg') return <BSGDemo active={active} />
   if (kind === 'ronakos') return <RonakOSDemo active={active} />
-  return (
-    <div className="ticker-poster" aria-hidden="true">
-      <span className="ticker-poster-text">soon</span>
-    </div>
-  )
+  if (kind === 'deepracer') return <DeepRacerDemo active={active} />
+  if (kind === 'dns') return <DnsDemo active={active} />
+  if (kind === 'roflow') return <RoflowDemo active={active} />
+  if (kind === 'sentence') return <SentenceDemo active={active} />
+  if (kind === 'slackbot') return <SlackBotDemo active={active} />
+  if (kind === 'toh') return <TohDemo />
+  return null
 }
 
-function ProjectCard({
-  p,
-  interactive,
-}: {
-  p: Project
+function ProjectCard({ project, active, phase, interactive, advancing }: {
+  project: Project
+  active: boolean
+  phase: number
   interactive: boolean
+  advancing: boolean
 }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [visible, setVisible] = useState(true)
-
-  useEffect(() => {
-    const el = ref.current
-    if (!el || !('IntersectionObserver' in window)) return
-    const io = new IntersectionObserver(
-      ([entry]) => setVisible(entry.isIntersecting),
-      { threshold: 0.15 },
-    )
-    io.observe(el)
-    return () => io.disconnect()
-  }, [])
-
   const body = (
     <>
       <div className="ticker-demo">
-        <Demo kind={p.demo} active={visible} />
+        <Demo kind={project.demo} active={active} />
       </div>
       <div className="ticker-info">
-        <span className="ticker-badge" style={{ color: p.accent }}>
-          {p.index}
+        <span className="ticker-badge" style={{ color: project.accent }}>
+          {project.index}
         </span>
-        <h2 className="ticker-title">{p.title}</h2>
-        <p className="ticker-desc">{p.desc}</p>
+        <h2 className="ticker-title">{project.title}</h2>
+        <p className="ticker-desc">{project.desc}</p>
         <div className="ticker-tags">
-          {p.tags.map((t) => (
+          {project.tags.map((t) => (
             <span key={t}>{t}</span>
           ))}
         </div>
       </div>
     </>
   )
-
+  const style = { '--card-phase': `${phase}` } as CSSProperties
   return (
-    <div ref={ref} className="ticker-card" {...(!interactive ? { 'aria-hidden': true } : {})}>
-      {interactive ? (
-        <a href={p.href} target="_blank" rel="noopener noreferrer">
+    <div
+      className={`ticker-card${advancing ? ' is-advancing' : ''}`}
+      style={style}
+      aria-hidden={interactive ? undefined : true}
+    >
+      {interactive && project.href ? (
+        <a href={project.href} target="_blank" rel="noopener noreferrer">
           {body}
         </a>
       ) : (
@@ -87,45 +83,112 @@ function ProjectCard({
   )
 }
 
-function Copy({ interactive }: { interactive: boolean }) {
-  const cards: ReactNode[] = []
-  for (let r = 0; r < REPEAT; r++) {
-    for (const p of PROJECTS) {
-      cards.push(
-        <ProjectCard key={`${p.id}-${r}`} p={p} interactive={interactive} />,
-      )
+function Copy({ interactive, basePhase, active, advancing }: {
+  interactive: boolean
+  basePhase: number
+  active: boolean
+  advancing: boolean
+}) {
+  return (
+    <>
+      {PROJECTS.map((p, i) => (
+        <ProjectCard
+          key={`${p.index}-${basePhase}`}
+          project={p}
+          active={active}
+          phase={basePhase + i}
+          interactive={interactive}
+          advancing={advancing}
+        />
+      ))}
+    </>
+  )
+}
+
+function useVisibility(): [RefObject<HTMLElement>, boolean] {
+  const ref = useRef<HTMLElement>(null)
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setVisible(true)
+      return
     }
-  }
-  return <>{cards}</>
+    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { threshold: 0.05 })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+  return [ref, visible]
 }
 
 export default function ProjectTicker() {
   const trackRef = useRef<HTMLDivElement>(null)
   const viewportRef = useRef<HTMLDivElement>(null)
-  const [duration, setDuration] = useState(40)
+  const [stageRef, inView] = useVisibility()
+
+  const hoverRef = useRef(false)
+  const focusRef = useRef(false)
+  const touchRef = useRef(false)
+  const navRef = useRef(0)
   const [touching, setTouching] = useState(false)
+
+  const reduced = useRef(prefersReducedMotion()).current
+
+  // advance one project: positive = next (leftward), negative = previous
+  const navigate = (dir: 1 | -1) => {
+    const track = trackRef.current
+    if (!track) return
+    const first = track.querySelector<HTMLElement>('.ticker-card')
+    const step = first ? first.offsetWidth + 28 : 508
+      navRef.current += dir * step
+      hoverRef.current = false
+      focusRef.current = false
+    }
 
   useEffect(() => {
     const track = trackRef.current
-    if (!track) return
-    const update = () => {
-      const half = track.scrollWidth / 2
-      if (half > 0) setDuration(half / SPEED_PX_S)
-    }
-    update()
-    if (typeof ResizeObserver !== 'undefined') {
-      const ro = new ResizeObserver(update)
-      ro.observe(track)
-      return () => ro.disconnect()
-    }
-    window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
-  }, [])
+    if (!track || reduced) return
 
-  // Clicking a card opens a new tab; the link keeps focus, which would
-  // hold the ticker paused (via :focus-within) after coming back.
-  // Drop focus only if it's inside the ticker, so keyboard users
-  // tabbing elsewhere are unaffected.
+    let raf = 0
+    let last = performance.now()
+    let x = 0
+    let half = track.scrollWidth / 2
+    const measure = () => {
+      half = track.scrollWidth / 2
+    }
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+    ro?.observe(track)
+
+    const AUTO = SPEED_PX_S
+    const NAV = NAV_PX_S
+
+    const frame = (now: number) => {
+      raf = requestAnimationFrame(frame)
+      const dt = Math.min(Math.max((now - last) / 1000, 0), 1 / 30)
+      last = now
+
+      const nav = navRef.current
+      if (Math.abs(nav) > 0.5) {
+        const dir = nav > 0 ? 1 : -1
+        const move = dir * Math.min(Math.abs(nav), NAV * dt)
+        x += move
+        navRef.current = Math.abs(nav - move) < 0.5 ? 0 : nav - move
+      } else if (!(hoverRef.current || focusRef.current || touchRef.current)) {
+        x += AUTO * dt
+      }
+
+      if (half > 0) x = ((x % half) + half) % half
+      track.style.transform = `translateX(${-x}px)`
+    }
+    raf = requestAnimationFrame(frame)
+    return () => {
+      cancelAnimationFrame(raf)
+      ro?.disconnect()
+    }
+  }, [reduced])
+
+  // Drop focus after a card link returns to the tab, so the ticker
+  // (paused by :focus-within) resumes instead of staying frozen.
   useEffect(() => {
     const releaseFocus = () => {
       const vp = viewportRef.current
@@ -144,23 +207,78 @@ export default function ProjectTicker() {
   }, [])
 
   return (
-    <section className="projects-section" aria-label="Selected work">
-      <div
-        ref={viewportRef}
-        className={`ticker-viewport${touching ? ' is-touching' : ''}`}
-        onTouchStart={() => setTouching(true)}
-        onTouchEnd={() => setTouching(false)}
-        onTouchCancel={() => setTouching(false)}
-      >
+    <section className="projects-section" aria-label="Selected work" ref={stageRef}>
+      <div className="ticker-stage">
+        {!reduced && (
+          <>
+            <button
+              type="button"
+              className="ticker-arrow ticker-arrow--left"
+              aria-label="Previous project"
+              onMouseEnter={() => (hoverRef.current = true)}
+              onMouseLeave={() => (hoverRef.current = false)}
+              onFocus={() => (focusRef.current = true)}
+              onBlur={() => (focusRef.current = false)}
+              onClick={() => {
+                focusRef.current = false
+                hoverRef.current = false
+                window.setTimeout(() => (hoverRef.current = false), 0)
+                navigate(-1)
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
+                <path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="ticker-arrow ticker-arrow--right"
+              aria-label="Next project"
+              onMouseEnter={() => (hoverRef.current = true)}
+              onMouseLeave={() => (hoverRef.current = false)}
+              onFocus={() => (focusRef.current = true)}
+              onBlur={() => (focusRef.current = false)}
+              onClick={() => {
+                focusRef.current = false
+                hoverRef.current = false
+                window.setTimeout(() => (hoverRef.current = false), 0)
+                navigate(1)
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
+                <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </>
+        )}
         <div
-          ref={trackRef}
-          className="ticker-track"
-          style={{ '--ticker-duration': `${duration}s` } as CSSProperties}
+          ref={viewportRef}
+          className={`ticker-viewport${touching ? ' is-touching' : ''}`}
+          onMouseEnter={() => (hoverRef.current = true)}
+          onMouseLeave={() => {
+            hoverRef.current = false
+          }}
+          onFocus={() => (focusRef.current = true)}
+          onBlur={() => (focusRef.current = false)}
+          onTouchStart={() => {
+            touchRef.current = true
+            setTouching(true)
+          }}
+          onTouchEnd={() => {
+            touchRef.current = false
+            setTouching(false)
+          }}
+          onTouchCancel={() => {
+            touchRef.current = false
+            setTouching(false)
+          }}
         >
-          <Copy interactive />
-          <span className="ticker-copy-dup" aria-hidden="true" style={{ display: 'contents' }}>
-            <Copy interactive={false} />
-          </span>
+          <div ref={trackRef} className="ticker-track">
+            <Copy interactive={inView} basePhase={0} active={inView} advancing={navRef.current !== 0} />
+            <span className="ticker-copy-dup" aria-hidden="true" style={{ display: 'contents' }}>
+              <Copy interactive={false} basePhase={PROJECTS.length} active={inView} advancing={navRef.current !== 0} />
+            </span>
+          </div>
         </div>
       </div>
     </section>
