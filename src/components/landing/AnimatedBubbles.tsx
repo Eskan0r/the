@@ -239,12 +239,15 @@ export default function AnimatedBubbles({
     let pushTarget = 0
     let spush = 0
     let prevMs = -1
+    let interacted = false
+    let bootMs = -1
     const onPointerMove = (e: PointerEvent) => {
       const vw = window.innerWidth
       const vh = window.innerHeight
       tmx = (e.clientX - vw / 2) / vh
       tmy = (vh / 2 - e.clientY) / vh
       pushTarget = 1
+      interacted = true
     }
     const onPointerLeave = () => {
       pushTarget = 0
@@ -294,6 +297,21 @@ export default function AnimatedBubbles({
       const w = canvas.width
       const h = canvas.height
       if (w === 0 || h === 0) return
+      // scripted first nudge: if the visitor hasn't touched anything
+      // ~1.2s after load, sweep an invisible finger through the rings
+      // once so the page winks and teaches that it's alive. Never
+      // repeats; any real pointer input cancels it permanently.
+      if (bootMs < 0) bootMs = timeMs
+      if (!interacted) {
+        const age = timeMs - bootMs
+        if (age > 1200 && age < 3400) {
+          const p = (age - 1200) / 2200
+          const e = p * p * (3 - 2 * p)
+          tmx = -0.55 + 1.1 * e
+          tmy = 0.12 * Math.sin(p * Math.PI * 2)
+          pushTarget = Math.sin(p * Math.PI)
+        }
+      }
       // smooth cursor: fast follow for position, slow fade for strength
       const dt = prevMs < 0 ? 0 : Math.min((timeMs - prevMs) / 1000, 0.05)
       prevMs = timeMs
@@ -359,6 +377,42 @@ export default function AnimatedBubbles({
       }
     }
 
+    // Click-to-poke: a click anywhere on the hero fires a radial
+    // velocity kick from that point. The springs turn it into a
+    // scatter + slosh-back on their own. No preventDefault — links
+    // still work; they just poke on the way out.
+    const onPoke = (e: PointerEvent) => {
+      const hero = document.querySelector('.hero-section')
+      const r = hero?.getBoundingClientRect()
+      if (!r) return
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) {
+        return
+      }
+      const vw = window.innerWidth
+      const vh = window.innerHeight
+      const mx = (e.clientX - vw / 2) / vh
+      const my = (vh / 2 - e.clientY) / vh
+      const t = (performance.now() / 1000) * speed
+      const sim = computeAnchors(t, vw, vh)
+      for (let i = 0; i < 5; i++) {
+        const b = simBlobs[i]
+        const a = sim.blobs[i]
+        let dx = a.x + b.ox - mx
+        let dy = a.y + b.oy - my
+        let dist = Math.hypot(dx, dy)
+        if (dist < 0.05) {
+          const ra = Math.random() * Math.PI * 2
+          dx = Math.cos(ra)
+          dy = Math.sin(ra)
+          dist = 0.05
+        }
+        const kick = 1.2 * Math.exp(-((dist * dist) / (0.45 * 0.45)))
+        b.vx += (dx / dist) * kick
+        b.vy += (dy / dist) * kick
+      }
+    }
+    window.addEventListener('pointerdown', onPoke)
+
     let rafId = 0
     let running = true
     const startMs = performance.now()
@@ -412,6 +466,7 @@ export default function AnimatedBubbles({
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerup', onPointerUp)
       window.removeEventListener('pointercancel', onPointerUp)
+      window.removeEventListener('pointerdown', onPoke)
       document.removeEventListener('visibilitychange', onVis)
       document.documentElement.removeEventListener('pointerleave', onPointerLeave)
       canvas.removeEventListener('webglcontextlost', onContextLost)

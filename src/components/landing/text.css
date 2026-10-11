@@ -1,0 +1,38 @@
+.split-text {
+  display: inline;
+}
+
+.split-word {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-bottom: 0.08em;
+  margin-bottom: -0.08em;
+}
+
+/* Visible by default: the GSAP fromTo sets the hidden start state in JS
+   (pre-paint via useLayoutEffect), so if the tween never runs the text
+   is still readable instead of stuck invisible. */
+.split-word-inner {
+  display: inline-block;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+.scramble {
+  position: relative;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.scramble-ghost {
+  visibility: hidden;
+  white-space: pre;
+}
+
+.scramble-live {
+  position: absolute;
+  top: 0;
+  left: 0;
+  white-space: pre;
+}

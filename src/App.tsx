@@ -1,7 +1,9 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import './styles/globals.css'
 import LandingPage from './pages/LandingPage'
-import OsDesktop from './components/OsDesktop'
+
+const OsDesktop = lazy(() => import('./components/OsDesktop'))
 
 function useIsOsSubdomain() {
   const { hostname } = window.location
@@ -12,7 +14,11 @@ export default function App() {
   const isOsSubdomain = useIsOsSubdomain()
 
   if (isOsSubdomain) {
-    return <OsDesktop />
+    return (
+      <Suspense fallback={null}>
+        <OsDesktop />
+      </Suspense>
+    )
   }
 
   return (

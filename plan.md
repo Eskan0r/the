@@ -2,10 +2,9 @@
 
 ## Overview
 
-Transform the current RonakOS (desktop-portfolio) into a section of a larger, polished portfolio website. The landing page features a light/white Google-aesthetic with floating cards that have organic bubble-like borders and a scroll-driven depth system. A particle-based snake follows the cursor in the background, creating an interactive, satisfying experience. The existing OS lives at ronakchavva.com and is linked from the landing page.
+Light-mode landing page (`ronakchavva.com`) + desktop-grade OS (`os.ronakchavva.com`) from one repo, split at runtime by subdomain. The landing is a **toybox**: a liquid-glass hero over a WebGL lava-lamp background, an infinite project ticker ("The Wire"), and a footer with a door. The OS is linked from the landing and lives on its subdomain.
 
-- **Landing page**: test.ronakchavva.com (eventually ronakchavva.com)
-- **OS**: ronakchavva.com (eventually os.ronakchavva.com)
+> Status (Oct 2026): landing hero, ticker, footer, refracting cursor set, and vendored water-edge glass are BUILT. Dropped/deferred: scroll depth system, skills physics container, particle snake, dark mode, SEO extras (see What's Next).
 
 ---
 
@@ -13,13 +12,13 @@ Transform the current RonakOS (desktop-portfolio) into a section of a larger, po
 
 | Layer              | Choice                        | Why                                                      |
 | ------------------ | ----------------------------- | -------------------------------------------------------- |
-| Framework          | Vite + React (existing)       | Already works, fast builds, no reason to switch          |
-| 3D / Particles     | react-three-fiber + drei      | GPU particles, depth, post-processing (bloom, DOF)       |
-| UI Animations      | Framer Motion                 | Card transitions, section reveals, hover states          |
-| Styling            | Tailwind CSS (existing)       | Already set up, fast for UI cards                        |
-| Routing            | react-router-dom              | `/` = landing, OS at external ronakchavva.com            |
-| SVG Effects        | Raw SVG filters               | Organic bubble card borders via feTurbulence + displacement |
-| Glass Effect       | @ybouane/liquidglass          | WebGL liquid glass refraction on hero name text          |
+| Framework          | Vite + React + TypeScript (existing) | Already works, fast builds |
+| Shaders / Glass    | Raw WebGL2 (SDF lava-lamp bg) + vendored liquidglass (own fork) | No deps for the bg; full control of the glass |
+| UI Animations      | CSS keyframes + intervals (framer-motion installed, available) | Ticker loop, entrances |
+| Styling            | Tailwind CSS (existing) + globals.css | Fast for UI cards |
+| Routing            | react-router-dom + subdomain switch | `/` = landing, OS at os.ronakchavva.com |
+| Content            | `src/data/projects.ts` | New ticker projects are data, not layout |
+| Glass Effect       | `src/lib/liquidglass` (vendored MIT, water-edge SDF fork) | Editable refraction, wobble edges, mouse dent |
 
 ---
 
@@ -30,34 +29,35 @@ Transform the current RonakOS (desktop-portfolio) into a section of a larger, po
 ```
 src/
   main.tsx                    (entry, router)
-  App.tsx                     (router wrapper)
+  App.tsx                     (subdomain switch + router)
   pages/
-    LandingPage.tsx           (the new landing page)
+    LandingPage.tsx           (hero → ticker → footer)
+  data/
+    projects.ts               (ticker content)
   components/
     landing/
-      HeroSection.tsx         (name, tagline, CTA)
-      ProjectCard.tsx         (floating bubble card for projects)
-      SkillCard.tsx           (floating bubble card for skills)
-      AboutCard.tsx           (floating bubble card for about)
-      ContactCard.tsx         (floating bubble card for contact)
-      BubbleCard.tsx          (shared card wrapper with SVG displacement)
-      DepthContainer.tsx      (scroll-tracking container for z-depth)
-      ParticleSnake.tsx       (R3F canvas + particle system)
-      SnakeFood.tsx           (food spawner near cursor)
-    desktop/                  (existing OS components, unchanged)
-    apps/                     (existing OS components, unchanged)
-    window/                   (existing OS components, unchanged)
-  stores/                     (existing stores, unchanged)
-  lib/                        (existing supabase.ts, unchanged)
+      HeroSection.tsx         (name glass panel + CTAs)
+      AnimatedBubbles.tsx     (WebGL2 bubble bg + spring physics)
+      CustomCursor.tsx        (refractable arrow/hand cursor set)
+      ProjectTicker.tsx       ("The Wire" infinite ticker)
+      BSGDemo.tsx             (live BSG mock, `active`-gated)
+      RonakOSDemo.tsx         (live space sim, `active`-gated)
+      BubbleCard.tsx          (legacy, unused)
+      SiteFooter.tsx          (contact links + copy-email button)
+    desktop/ apps/ window/    (OS, unchanged)
+    OsDesktop.tsx             (OS shell)
+  lib/
+    liquidglass/              (vendored glass fork — WE OWN IT)
   styles/
-    globals.css               (existing, extended for landing page)
+    globals.css               (all landing CSS)
 ```
 
-### Routing
+### Routing (BUILT)
 
 - `/` renders `LandingPage.tsx`
-- The OS is NOT a route on this app. The landing page links to `ronakchavva.com` (external).
-- If someone navigates to test.ronakchavva.com/os or anything else, fallback to landing page.
+- `/os` redirects to `https://os.ronakchavva.com`
+- `*` redirects to `/`
+- `os.*` hostname renders `OsDesktop` directly (no router)
 
 ### Notes
 
@@ -69,288 +69,118 @@ src/
 
 ## Section 2: Landing Page Layout (Phase 1)
 
-### Hero Section
+### Hero Section (BUILT — evolved past this spec)
 
-- Full viewport height
-- Centered content with generous whitespace
-- Name: "Ronak Chavva" in large clean sans-serif (Inter or Google Sans Text)
-- Tagline: "makin things that look like they work"
-- Subtle animated entrance (fade + slide up via Framer Motion)
-- Two CTAs:
-  - "Explore OS" button -> opens ronakchavva.com in new tab
-  - GitHub icon link -> github.com/Eskan0r
+- Full viewport height, centered column: glass name panel → CTAs below
+- Name: "Ronak Chavva" in large Inter; tagline: "makin things that look like they work"
+- Two CTAs (LinkedIn primary, GitHub icon) live OUTSIDE the glass panel — refracted pixels and DOM hitboxes don't align, so interactive content must not sit inside glass
+- Panel centers via flexbox (absolute + translate breaks on mobile Safari)
+- Scroll fades hero elements out via opacity
 
-### Floating Cards Section
+### Project Demos — "The Wire" ticker (BUILT, replaces floating cards)
 
-Below the hero, cards float in whitespace. Each card is a `BubbleCard`:
+Below the hero, projects stream right-to-left forever in a newsroom band:
+- Data-driven from `src/data/projects.ts` (`bsg | ronakos | poster` kinds) — new projects are appended objects
+- Seamless `-50%` loop, gap inside cards only, duration measured from content width (constant px/s)
+- Pauses on hover / keyboard-focus / touch-hold; dup half `aria-hidden`; focus released on tab-return
+- Each card IO-gates its demo (`active` prop) so only visible sims run
+- Reduced motion → static stacked grid
+- Current cards: BSG (chat cadence 3s), RonakOS (mobile-scaled sim), both linking out
 
-- **Skills container**: Interactive physics (see Section 3)
-- **Projects card(s)**:
-  - BSG (Binary Search Gang) - links to https://github.com/acmutd/bsg
-  - RonakOS - links to ronakchavva.com
-- **Contact card**: GitHub, LinkedIn, Email
+### Ambient Background (BUILT — WebGL2 SDF, evolved past canvas bubbles)
 
-### Card Design (BubbleCard - Glass)
+- Fullscreen transparent canvas with a 5-blob lava-lamp SDF scene, rainbow crisp rim, hollow insides
+- JS spring sim drives offsets: cursor repulsion (frozen-core direction), click-to-poke radial kicks, one scripted sweep ~1.2s after load
+- Portrait zoom-fit + vertical clamps keep rims on screen; DPR caps; pauses offscreen; static under reduced motion
 
-- Semi-transparent white background (`rgba(255,255,255,0.65)`)
-- `backdrop-filter: blur(24px)` for Apple-style frosted glass
-- Subtle white border (`rgba(255,255,255,0.6)`) for glass edge highlight
-- Inner shadow (`inset 0 1px 0 rgba(255,255,255,0.5)`) for depth
-- SVG `<filter>` with `feTurbulence` + `feDisplacementMap` for organic wobbly borders
-- Rounded corners (24px)
-- Clean typography inside (JetBrains Mono for labels, Inter for body)
+### Liquid Glass Hero (BUILT — vendored fork with water edges)
 
-### Ambient Background
-
-- Full-page `<canvas>` with animated bubbles, lives inside the liquidglass root so bubbles refract through the hero name as they pass
-- Canvas marked `data-dynamic` so liquidglass re-captures every frame
-- Bubbles spawn from bottom-left corner, travel to top-right corner
-- Trajectory calculated from actual screen dimensions: angle = atan2(-height, width) with tight 0.3 radian spread
-- Inverted gradient: transparent center fading to solid edge (real soap bubble look)
-- Large bubbles: 114px radius (3x previous), uniform size
-- Up to 15 bubbles on screen, spawning every 400ms
-- Base speed 3.5, slight random variation (85-115%)
-- Specular highlight + white glint for glossy finish
-- `pointer-events: none` on the canvas so UI above handles its own events
-
-### Liquid Glass Hero Text
-
-- Hero name uses `@ybouane/liquidglass` library for WebGL refraction
-- The hero-name div is a **direct child** of the liquidglass root (library requirement - nested elements are silently rejected)
-- Animated bubbles canvas is also a direct child with `data-dynamic` so the shader captures and refracts bubbles passing behind the name
-- Config: high refraction (0.85), slight blur, edge highlights, specular, chromatic aberration
-- Text is dark on top of the glass panel
-- Tagline and CTAs are in a separate fixed-position `.hero-center` div (outside the liquidglass root)
-- **Gotcha**: Framer Motion's inline `transform` overrides CSS `transform: translateX(-50%)` for centering - use `left: 0; right: 0` with flex centering instead
-- **Gotcha**: `.liquid-glass-root` must NOT have `overflow: hidden` - clips the injected glass canvas
-
-### Depth System
-
-- Cards are positioned in a scattered layout across the viewport
-- As user scrolls, cards near viewport center are at full scale (1.0) and full opacity
-- Cards scrolled past (above) or not yet reached (below) scale down (0.85-0.9) and gain slight blur + reduced opacity
-- Achieved via `IntersectionObserver` + CSS transforms, or Framer Motion's `useScroll` + `useTransform`
-- Creates a parallax/depth effect where the "focused" card feels close and others recede
+- `src/lib/liquidglass` (ex-MIT package, now first-party): name panel uses water-edge SDF (`glassSDF` — angular wobble + pointer dent, all taps routed through it)
+- Tunables: `flowAmp/flowSpeed/flowSeed/mouseAmp` via `data-config` or defaults
+- Canvas stays `data-dynamic` direct child of the glass root (`preserveDrawingBuffer` required for snapshots)
+- Gotchas honored: no `loseContext()` under StrictMode, flex centering, CTAs outside glass, cursor canvases z-managed (hero z1 refracts, page canvas portalled to body)
 
 ### Decisions Made
 
 - **Hero**: Google homepage simplicity. Name large but clean, tagline below, minimal CTAs. Inter font. Lots of whitespace.
-- **Card layout**: Scattered organic positioning. Cards float in whitespace but do NOT overlap (except stylistic transitions). Each card has its own breathing room.
-- **Skills**: No static list. Interactive physics container (see Section 3).
+- **Card layout**: Single infinite ticker band ("The Wire"), not scattered cards.
+- **Skills**: No static list (for now).
 - **About section**: Removed. Not needed.
 
 ---
 
-## Section 3: Interactive Skills Container
+## Section 3: Project Content (ticker data)
 
-Instead of a static skills card, the skills section is a **bounded physics container** where skill labels float around as rigid bodies.
+The floating-cards spec was **superseded** by "The Wire" ticker (Section 2). Projects are now pure data in `src/data/projects.ts`; appending one object adds a card with no layout surgery. Each entry has `id`, `index`, `title`, `desc`, `tags`, `href`, `accent`, and a `demo` kind (`bsg | ronakos | poster`).
 
-### Concept
-
-- A rectangular container (maybe 600x400px, centered on the page)
-- Inside, skill chips/tags (e.g., "TypeScript", "React", "PostgreSQL") are physics bodies bouncing slowly off walls and each other
-- Each chip has slight random velocity and rotation, creating a living, breathing cloud
-- **Grab interaction**: When user clicks and holds a skill chip:
-  - The chip "straightens out" (rotation snaps to 0, becomes readable)
-  - It becomes kinematic (follows the mouse)
-  - Moving it through the cloud pushes other chips out of the way (real collision)
-  - On release, the chip rejoins the floating simulation with a small velocity
-- Subtle border/container visible so the user understands it's a bounded space
-
-### Tech: matter.js
-
-- Purpose-built 2D rigid body physics engine (~30KB gzipped)
-- Handles collision, boundaries, mouse constraint (drag), body types (dynamic vs kinematic)
-- Perfect fit for this specific feature
-- Renders via a `<canvas>` element managed by matter.js (not R3F - separate concern)
-- Skill chips rendered as HTML overlays positioned via matter.js body positions (keeps text crisp)
-
-### Skills to include (curated)
-
-Organized by category, shown as floating chips:
-
-**Languages**: TypeScript, JavaScript, Python, Go, C, C++, Java, SQL, Bash, Terraform
-**Frontend**: React, Angular, Next.js, Tailwind CSS, Vite
-**Backend**: Node.js, Express, FastAPI, PostgreSQL, Redis, Kafka, WebSockets, MongoDB
-**Infra**: Docker, Linux, AWS (ROSA, S3, Lambda, API Gateway, Route53), Kubernetes, Git
-**Security**: Cisco, Wireshark, Splunk
-
-When a chip is grabbed and straightened, it could show the category as a subtle sub-label.
-
----
-
-## Section 4: Project Cards
-
-Two project cards floating in the layout:
+Current entries:
 
 ### BSG (Binary Search Gang)
 
 - Title: "Binary Search Gang"
-- Subtitle: "Real-time collaborative LeetCode platform"
+- Desc: "Chrome extension for collaborative LeetCode"
 - Tags: Node.js, PostgreSQL, Redis, Kafka, WebSockets
-- Brief description (2-3 lines max)
-- CTA link -> https://github.com/acmutd/bsg (opens new tab)
-- Small visual: could be a minimal icon or abstract shape
+- Link -> https://github.com/acmutd/bsg
+- Demo: `bsg` (live LeetCode + party-chat sim)
 
 ### RonakOS
 
 - Title: "RonakOS"
-- Subtitle: "Desktop-grade portfolio experience"
+- Desc: "Desktop portfolio experience"
 - Tags: React, TypeScript, Zustand, Supabase, Canvas
-- Brief description (2-3 lines max)
-- CTA link -> ronakchavva.com (opens new tab)
-- Small visual: terminal icon or window icon (reuse from existing Desktop.tsx SVGs)
+- Link -> https://os.ronakchavva.com
+- Demo: `ronakos` (live space / black-hole canvas sim)
 
 ---
 
-## Section 5: Particle Snake (Background)
+## Section 4: Contact / Footer (BUILT as SiteFooter)
 
-### Concept
-
-A particle-based snake lives in a full-page R3F Canvas behind all UI content. It creates ambient life and interactivity without blocking interaction with the cards above it.
-
-### Snake Behavior
-
-- **Body**: ~1500-2000 particles distributed along a smooth bezier/spline path
-- **Head**: follows cursor with slight lag (easing factor ~0.08)
-- **Body trail**: each point follows the one ahead of it with increasing lag, creating a natural serpentine motion
-- **Particles**: small instanced circles/dots, green (#00ff88) with varying opacity and size
-  - Head particles: largest, brightest
-  - Tail particles: smaller, more transparent
-  - Each particle has subtle random offset from the spine for organic width variation
-- **Glow**: post-processing bloom pass gives the snake a soft green glow
-
-### Food System
-
-- Food dots spawn along the cursor's movement path (not randomly on screen)
-- As the cursor moves, small food particles appear in its wake
-- The snake head naturally steers toward the nearest food dot
-- When the snake reaches food:
-  - Food particle bursts into a small explosion of particles
-  - A nearby card gets a brief glow/pulse effect (connecting the snake to the content)
-  - New food spawns as cursor continues moving
-- This creates a loop: move cursor -> food appears -> snake follows -> satisfying eat animation
-
-### Cursor Interaction
-
-- The cursor is represented as a force field / repulsion sphere
-- When the cursor approaches the snake's particles, they scatter outward (water push effect)
-- Particles smoothly return to their spine position after the cursor passes
-- This creates the "water simulation" feel where the cursor displaces the particle field
-- Implementation: per-frame distance check from cursor to each particle, apply outward force if within radius
-
-### R3F Setup
-
-- `<Canvas>` fixed position, full viewport, z-index: 0 (behind all UI)
-- `pointer-events: none` on the canvas (UI above handles its own events)
-- Custom cursor tracking via `onPointerMove` on the window (captured even with pointer-events: none)
-- InstancedMesh for all particles (single draw call for ~2000 particles = very performant)
-- Post-processing: BloomPass for glow effect (from `@react-three/postprocessing`)
-- Camera: orthographic, covering the full viewport in screen-space coordinates
-
-### Performance
-
-- Target: 60fps on modern hardware
-- Fallback: if frame rate drops below 45fps for 3 consecutive frames, reduce particle count by half
-- Mobile: disable particle snake entirely, show a subtle CSS animation instead
-- The snake is purely visual - no gameplay, no score, just ambient life
+Punchline ("you reached the end <3") + GitHub / LinkedIn / RonakOS links and an **Email** button that copies `ronakch8@gmail.com` to the clipboard (shows "copied!"). No Resume link lives here — the resume is downloadable only via the OS terminal easter egg (`curl -O resume.pdf`).
 
 ---
 
-## Section 6: Contact Card
+## Section 5: Custom Cursor (BUILT — refracting replica set)
 
-Simple card with three links:
-- GitHub: github.com/Eskan0r
-- LinkedIn: linkedin.com/in/ronakchavva-48b318262
-- Email: ronakch8@gmail.com
-
-Each link has a subtle icon (GitHub, LinkedIn, envelope SVGs) and hover effect.
+- OS cursor can't be captured by any website, so a pixel-faithful replica is drawn as DOM content: hand-drawn arrow + mocu-xcursor CC0 hand for links
+- Dual canvases, one loop: hero canvas (z1, `data-dynamic`, refracts through the name glass) + page canvas (z50, portalled to body to escape the hero stacking context)
+- 1:1 tracking, `.has-custom-cursor` hides the OS cursor; fine-pointer + no-reduced-motion only; touch untouched
 
 ---
 
-## Section 7: Custom Cursor
+## Section 6: Polish & Production
 
-- Hide the default system cursor when over the landing page
-- Render a small custom cursor: a dot (4px) with a trailing ring (20px, follows with lag)
-- The ring subtly scales up when hovering interactive elements (buttons, links, skill chips)
-- Green accent color (#00ff88) to match the snake and overall theme
-- On mobile/touch devices: no custom cursor, default system cursor
+### Responsive Design (BUILT)
 
----
-
-## Section 8: Polish & Production
-
-### Loading Experience
-
-- Brief loading screen while R3F initializes
-- Show the name + tagline fading in, then the Canvas fades in behind
-
-### Responsive Design
-
-- **Desktop (>1024px)**: Full experience - particle snake, physics skills, scattered cards, custom cursor
-- **Tablet (768-1024px)**: Particle snake disabled, skills physics still works, cards in a more structured 2-column layout
-- **Mobile (<768px)**: No snake, no physics, no custom cursor. Clean stacked cards with Framer Motion scroll animations. Still looks polished.
-
-### SEO & Meta
-
-- Title: "Ronak Chavva - Software Engineer"
-- Open Graph image (create a simple one with name + tagline)
-- Meta description
-- Favicon (green accent)
-
-### Performance Targets
-
-- Lighthouse Performance: 90+
-- First Contentful Paint: < 1.5s
-- Total bundle (gzipped): < 150KB (R3F ~70KB, matter.js ~30KB, rest ~30KB)
+- **Desktop (>1024px)**: full experience
+- **Tablet (768-1024px)**: condensed demos (BSG shows chat only), taller ticker cards
+- **Mobile (<768px)**: stacked ticker under reduced motion, scaled sims, DPR caps, `dvh` units, icon-only BSG header, portrait shader zoom-fit
+- Reduced-motion fallbacks throughout (static shader frame, static ticker grid, OS cursor)
 
 ---
 
-## Implementation Phases
+## Implementation Phases (status Sep 2026)
 
-### Phase 1: Foundation
-- Set up react-router-dom
-- Build LandingPage with Hero section (Google simplicity)
-- Basic BubbleCard component with SVG displacement filter
-- Deploy to test.ronakchavva.com via Vercel
-- **No snake, no physics yet**
-
-### Phase 2: Cards + Depth
-- Floating card layout (scattered, no overlap)
-- Scroll-driven depth system (scale, blur, opacity)
-- Project cards (BSG + RonakOS) with links
-- Contact card
-- Framer Motion entrance animations
-- **Still no snake**
-
-### Phase 3: Interactive Skills
-- Add matter.js physics container
-- Floating skill chips with collision
-- Grab/drag/jostle interaction
-- Category labels on grab
-
-### Phase 4: Particle Snake
-- Set up R3F Canvas
-- Implement snake spine (bezier chain following cursor)
-- InstancedMesh particle rendering
-- Bloom post-processing for glow
-- Food system (spawns along cursor path)
-- Cursor repulsion (water push effect)
-- Eat animations
-
-### Phase 5: Custom Cursor + Polish
-- Custom cursor with trailing ring
-- Loading screen
-- Responsive breakpoints
-- Mobile fallbacks
-- SEO, meta, favicon
-- Performance audit and optimization
+### Phase 1: Foundation — DONE (router, landing shell, hero, deploys)
+### Phase 2: Cards + Depth — SUPERSEDED (ticker replaced cards; depth dropped)
+### Phase 3: Interactive Skills — ATTEMPTED + REMOVED
+### Phase 4: Particle Snake — DEFERRED (spring sim covers ambient life)
+### Phase 5: Custom Cursor + Polish — DONE (refracting set, mobile, footer, SEO basics pending)
 
 ---
 
-## Deployment
+## What's Next (backlog)
 
-- Vercel with two domains:
-  - test.ronakchavva.com -> this landing page (Phase 1-5)
-  - ronakchavva.com -> existing OS (unchanged)
-- Eventually swap: ronakchavva.com -> landing, os.ronakchavva.com -> OS
+- **SEO / meta extras** — Open Graph / social cards, canonical URLs (Phase 5 leftover). Base description and font preconnects are already in `index.html`.
+- **Dark mode** — deferred; the landing is intentionally light-only for now.
+- **Particle snake** — deferred; the AnimatedBubbles spring sim already supplies ambient life.
+- **Scroll-depth system** — dropped (superseded by hero scroll-fade + ticker).
+- **Skills physics container** — attempted then removed; there is no static skills list.
+
+---
+
+## Deployment (CURRENT)
+
+- Vercel, split by hostname at runtime in `App.tsx`:
+  - ronakchavva.com -> landing page
+  - os.ronakchavva.com -> RonakOS desktop
+  - `/os` redirects to the OS subdomain; unknown paths fall back to `/`
