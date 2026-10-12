@@ -80,7 +80,7 @@ export const PROJECTS: Project[] = [
     title: 'roflow',
     desc: 'PCG puzzle generator and path-routing demo',
     tags: ['Angular', 'TypeScript', 'Tailwind', 'Cypress'],
-    href: 'https://github.com/Eskan0r/flow',
+    href: 'https://roflow.ronakchavva.com',
     accent: '#b388ff',
     demo: 'roflow',
   },

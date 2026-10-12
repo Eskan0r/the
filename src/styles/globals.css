@@ -441,18 +441,6 @@ input[type=number]::-webkit-outer-spin-button { display: none; }
   will-change: transform;
 }
 
-.ticker-card.is-advancing {
-  transform-origin: bottom center;
-  animation: card-squash-pop 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-@keyframes card-squash-pop {
-  0% { transform: translateY(0) scale(1, 1); }
-  40% { transform: translateY(4px) scale(1.03, 0.95); }
-  70% { transform: translateY(-6px) scale(0.98, 1.05); }
-  100% { transform: translateY(0) scale(1, 1); }
-}
-
 .ticker-card a {
   display: block;
   text-decoration: none;
@@ -943,10 +931,6 @@ input[type=number]::-webkit-outer-spin-button { display: none; }
   .ticker-card {
     width: auto;
     margin-right: 0;
-    animation: none;
-  }
-  .ticker-card.is-advancing {
-    animation: none;
   }
 
   .ticker-copy-dup {

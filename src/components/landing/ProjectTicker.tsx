@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import BSGDemo from './BSGDemo'
 import RonakOSDemo from './RonakOSDemo'
 import DeepRacerDemo from './DeepRacerDemo'
@@ -14,13 +14,11 @@ import { prefersReducedMotion } from '../../lib/motion/gsap'
    "The Wire" — infinite project ticker (right to left).
 
    Motion is driven in JS (requestAnimationFrame) so the end arrows can
-   advance exactly one project and the cards can squash-and-stretch on a
-   travelling wave. The track holds two identical halves; the offset wraps
-   at half-width for a seamless loop.
+   advance exactly one project. The track holds two identical halves; the
+   offset wraps at half-width for a seamless loop.
 
    - Pauses on hover, keyboard focus, and touch-hold.
    - End arrows step one card at a time (no speed-up).
-   - Each card has a staggered squash-and-stretch bob for a bouncy feel.
    - Reduced motion: static stacked grid.
    ───────────────────────────────────────────────────────────── */
 
@@ -39,12 +37,10 @@ function Demo({ kind, active }: { kind: Project['demo']; active: boolean }) {
   return null
 }
 
-function ProjectCard({ project, active, phase, interactive, advancing }: {
+function ProjectCard({ project, active, interactive }: {
   project: Project
   active: boolean
-  phase: number
   interactive: boolean
-  advancing: boolean
 }) {
   const body = (
     <>
@@ -65,11 +61,9 @@ function ProjectCard({ project, active, phase, interactive, advancing }: {
       </div>
     </>
   )
-  const style = { '--card-phase': `${phase}` } as CSSProperties
   return (
     <div
-      className={`ticker-card${advancing ? ' is-advancing' : ''}`}
-      style={style}
+      className="ticker-card"
       aria-hidden={interactive ? undefined : true}
     >
       {interactive && project.href ? (
@@ -83,22 +77,18 @@ function ProjectCard({ project, active, phase, interactive, advancing }: {
   )
 }
 
-function Copy({ interactive, basePhase, active, advancing }: {
+function Copy({ interactive, active }: {
   interactive: boolean
-  basePhase: number
   active: boolean
-  advancing: boolean
 }) {
   return (
     <>
-      {PROJECTS.map((p, i) => (
+      {PROJECTS.map((p) => (
         <ProjectCard
-          key={`${p.index}-${basePhase}`}
+          key={p.index}
           project={p}
           active={active}
-          phase={basePhase + i}
           interactive={interactive}
-          advancing={advancing}
         />
       ))}
     </>
@@ -140,6 +130,14 @@ export default function ProjectTicker() {
     if (!track) return
     const first = track.querySelector<HTMLElement>('.ticker-card')
     const step = first ? first.offsetWidth + 28 : 508
+    // Anti-spam: never stack steps. While a step is still in flight,
+    // repeats in the same direction are ignored, and the opposite
+    // direction replaces (never adds to) the pending distance. The
+    // ticker therefore always settles within ~one step of the last click.
+    if (Math.abs(navRef.current) > 0.5) {
+      if (Math.sign(navRef.current) !== dir) navRef.current = dir * step
+      return
+    }
       navRef.current += dir * step
       hoverRef.current = false
       focusRef.current = false
@@ -274,9 +272,9 @@ export default function ProjectTicker() {
           }}
         >
           <div ref={trackRef} className="ticker-track">
-            <Copy interactive={inView} basePhase={0} active={inView} advancing={navRef.current !== 0} />
+            <Copy interactive={inView} active={inView} />
             <span className="ticker-copy-dup" aria-hidden="true" style={{ display: 'contents' }}>
-              <Copy interactive={false} basePhase={PROJECTS.length} active={inView} advancing={navRef.current !== 0} />
+              <Copy interactive={false} active={inView} />
             </span>
           </div>
         </div>
