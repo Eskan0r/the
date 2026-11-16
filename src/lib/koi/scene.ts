@@ -4,6 +4,7 @@ import { createPond } from './environment'
 import { beginBite, advanceBite } from './bite'
 import { pondBoundary } from './boundary'
 import { createCursorCarry, advanceCursor, releaseCursor, movePondPointer } from './cursor'
+import { WaterSurface } from './water'
 // Koi scene adapted from Pawan-webdeveloper/Ascii-Animals-extension (MIT).
 // Upstream: https://github.com/Pawan-webdeveloper/Ascii-Animals-extension
 // See LICENSE in this directory. Only the koi sampler and canvas engine
@@ -160,6 +161,8 @@ const settings = {
 const DEFAULTS = { animal: "koi" };
 const GRID_LINE = "rgba(5, 15, 17, 0.48)";
 let pond;
+let waterSurface;
+let submergedPixels;
 
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -218,6 +221,8 @@ function resize() {
 
   R.font = `600 ${Math.round(R.cell * 1.02)}px "Geist Mono", ui-monospace, monospace`;
   pond = createPond(R.cols, R.rows);
+  waterSurface = new WaterSurface(window.innerWidth, window.innerHeight);
+  submergedPixels = new Uint32Array(n);
   drawOverlay();
 }
 
@@ -339,6 +344,7 @@ function addRipple(x, y, opts = {}) {
 }
 
 function tap(x, y) {
+  waterSurface.splash(x / R.dpr, y / R.dpr);
   const A = ANIMAL_BY_ID[current];
   const pale = mix(A.swatch, WHITE, 0.55);
 
@@ -352,7 +358,6 @@ function tap(x, y) {
       foods.push({ x: x + Math.cos(a) * r, y: y + Math.sin(a) * r, vx: Math.cos(a) * s, vy: Math.sin(a) * s, age: 0, life: rand(14, 18), tint: rand(0.85, 1.12) });
     }
     while (foods.length > 80) foods.shift();
-    addRipple(x, y, { dur: 1.3, maxR: 7, chars: "~", color: [150, 185, 220] });
     return;
   }
 
@@ -677,6 +682,7 @@ function render(dt) {
     rasterize(sorted[n], n, buf, false);
     emitTrails(sorted[n], dt);
   }
+  waterSurface.refract(buf, submergedPixels, R.cols, R.rows, R.cell / R.dpr);
   drawFood(buf);
 
   R.loCtx.putImageData(R.img, 0, 0);
@@ -802,6 +808,7 @@ function frame(now) {
   const dt = last ? clamp((now - last) / 1000, 0, 0.05) : 0.016;
   last = now;
   step(dt);
+  waterSurface.advance(dt, { x: pointer.x / R.dpr, y: pointer.y / R.dpr, active: pointer.active && !cursorCarry.carrier }, reducedMotion.matches ? 0.2 : 1);
   render(dt);
   animationId = requestAnimationFrame(frame);
 }
@@ -836,10 +843,11 @@ window.addEventListener("pointermove", (event) => {
   movePondPointer(pointer, x, y, R.W, R.H, moved && cursorCarry.carrier ? mouthPoint(cursorCarry.carrier) : undefined);
   if (moved) dropCursor();
 }, { signal });
-document.addEventListener("pointerleave", () => { pointer.active = false; dropCursor(true); }, { signal });
-window.addEventListener("blur", () => { pointer.active = false; dropCursor(true); }, { signal });
+document.addEventListener("pointerleave", () => { pointer.active = false; waterSurface.release(); dropCursor(true); }, { signal });
+window.addEventListener("blur", () => { pointer.active = false; waterSurface.release(); dropCursor(true); }, { signal });
 document.addEventListener("visibilitychange", () => {
   pointer.active = false;
+  waterSurface.release();
   dropCursor(true);
   cancelAnimationFrame(animationId);
   last = 0;
