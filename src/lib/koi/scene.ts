@@ -1,5 +1,8 @@
 // @ts-nocheck
 import { createTail, updateTail, spinePoint, unbendPoint } from './tail'
+import { createPond } from './environment'
+import { beginBite, advanceBite } from './bite'
+import { pondBoundary } from './boundary'
 // Koi scene adapted from Pawan-webdeveloper/Ascii-Animals-extension (MIT).
 // Upstream: https://github.com/Pawan-webdeveloper/Ascii-Animals-extension
 // See LICENSE in this directory. Only the koi sampler and canvas engine
@@ -150,13 +153,12 @@ const ANIMAL_BY_ID = Object.fromEntries(ANIMALS.map((a) => [a.id, a]));
 
 const settings = {
   density: 1, speed: 1, size: 1, depth: 0.6, sway: 0.5,
-  cell: 9, trails: true, bokeh: true, reach: 220, scare: 1,
+  cell: 9, trails: true, bokeh: false, reach: 220, scare: 1,
   tune: { koi: { direction: 0, spread: 0.9 } },
 };
 const DEFAULTS = { animal: "koi" };
-const BG = [13, 16, 22];
-const BG_PACKED = (255 << 24) | (BG[2] << 16) | (BG[1] << 8) | BG[0];
-const GRID_LINE = "rgba(5, 6, 9, 0.94)";
+const GRID_LINE = "rgba(5, 15, 17, 0.48)";
+let pond;
 
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -214,6 +216,7 @@ function resize() {
   R.tCol = new Uint8Array(n * 3);
 
   R.font = `600 ${Math.round(R.cell * 1.02)}px "Geist Mono", ui-monospace, monospace`;
+  pond = createPond(R.cols, R.rows);
   drawOverlay();
 }
 
@@ -392,6 +395,15 @@ function step(dt) {
       e.phaseMod = Math.max(e.phaseMod, 1) * (1 + scare * 1.6);
     }
 
+    // Only the final strike overrides movement; ordinary steering stays original.
+    const bite = advanceBite(e, foods, dt * motion, t);
+    if (bite.active) {
+      if (bite.eaten) addRipple(bite.eaten.x, bite.eaten.y, { dur: 0.7, maxR: 2.5, chars: "~", color: [170, 200, 230] });
+      updateTail(e.tail, dt * motion, e.heading, bite.speed / (scaleFor(e) * R.cell), settings.sway, e.rateMul);
+      e.phase = e.tail.phase;
+      continue;
+    }
+
     // where does it want to go?
     if (A.mode === "flow") {
       e.target = dirRad + e.baseOff * Math.PI * tune.spread * 0.35 + (A.wobble ? A.wobble(e, t) * (0.4 + settings.sway * 1.2) : 0);
@@ -436,11 +448,10 @@ function step(dt) {
         turnMul = far ? 2.2 : 2.6 + 3.5 * close;
         crowd = far ? 0.8 : 0.35;
         if (bestD < 3.5 * k * R.cell) boost *= 0.45;
-        if (bestD < (1.3 * k + 0.8) * R.cell && best.age > 0.4 && t >= (e.nextBite || 0)) {
-          best.eaten = true;
-          e.nextBite = t + rand(0.5, 0.9);
-          addRipple(best.x, best.y, { dur: 0.7, maxR: 2.5, chars: "Â°", color: [170, 200, 230] });
-          e.retargetAt = t + rand(0.4, 1.4);
+        if (beginBite(e, best, k * R.cell, t)) {
+          updateTail(e.tail, dt * motion, e.heading, 0, settings.sway, e.rateMul);
+          e.phase = e.tail.phase;
+          continue;
         }
       }
     }
@@ -481,34 +492,27 @@ function step(dt) {
       }
     }
 
+    const parallax = e.bokeh ? 0.55 : 0.55 + 0.45 * e.z;
+    const v = A.speed * e.speedMul * e.speedMod * sp * parallax * boost * R.cell * k * 0.6;
+    const edge = pondBoundary(e.x, e.y, e.heading, v / Math.max(motion, 0.001), reach, R.W, R.H);
+    const edgeStrength = Math.hypot(edge.x, edge.y);
+    if (edgeStrength > 0) {
+      const length = Math.hypot(dx, dy) || 1;
+      dx = dx / length + edge.x;
+      dy = dy / length + edge.y;
+      turnMul = Math.max(turnMul, 1 + Math.min(1.5, edgeStrength * 0.5));
+    }
     const desired = Math.atan2(dy, dx);
     const turn = A.turn * turnMul * dt;
     e.heading += clamp(angleDiff(desired, e.heading), -turn, turn);
 
-    const parallax = e.bokeh ? 0.55 : 0.55 + 0.45 * e.z;
-    const v = A.speed * e.speedMul * e.speedMod * sp * parallax * boost * R.cell * k * 0.6;
     e.x += Math.cos(e.heading) * v * dt;
     e.y += Math.sin(e.heading) * v * dt;
     // Deformation follows actual movement, without changing steering or speed.
     updateTail(e.tail, dt * motion, e.heading, v / (R.cell * k * Math.max(motion, 0.001)), settings.sway, e.rateMul);
     e.phase = e.tail.phase;
 
-    // wrap around, re-entering at a fresh spot along the far edge
-    const m = reach + 4 * R.cell;
-    if (e.x < -m) {
-      e.x = R.W + m;
-      e.y = rand(0, R.H);
-    } else if (e.x > R.W + m) {
-      e.x = -m;
-      e.y = rand(0, R.H);
-    }
-    if (e.y < -m) {
-      e.y = R.H + m;
-      e.x = rand(0, R.W);
-    } else if (e.y > R.H + m) {
-      e.y = -m;
-      e.x = rand(0, R.W);
-    }
+    // No wrapping: a fish that drifts out turns back through the same edge.
   }
 
   entities = entities.filter((e) => !(e.leaving && e.fade <= 0));
@@ -621,7 +625,18 @@ let trailChars = ".";
 
 function render(dt) {
   const buf = R.buf;
-  buf.fill(BG_PACKED);
+  buf.set(pond.pixels);
+  // Slow refracted light on the bottom, below fish and floating leaves.
+  for (let j = 0; j < R.rows; j++) for (let i = 0; i < R.cols; i++) {
+    const wave = Math.sin(i * 0.18 + Math.sin(j * 0.13 + simTime * 0.16) * 2.8 + simTime * 0.22)
+      + Math.sin(j * 0.21 + Math.sin(i * 0.11 - simTime * 0.12) * 2.1);
+    if (wave < 1.65) continue;
+    const idx = j * R.cols + i;
+    const p = buf[idx];
+    const light = Math.round((wave - 1.65) * 22);
+    buf[idx] = (255 << 24) | (Math.min(255, ((p >>> 16) & 255) + light) << 16)
+      | (Math.min(255, ((p >>> 8) & 255) + light) << 8) | Math.min(255, (p & 255) + light * 0.7);
+  }
   R.occ.fill(-1);
   glyphs.length = 0;
 
@@ -635,6 +650,7 @@ function render(dt) {
   R.loCtx.putImageData(R.img, 0, 0);
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(R.lo, 0, 0, R.cols * R.cell, R.rows * R.cell);
+  ctx.drawImage(pond.surface, 0, 0, R.cols * R.cell, R.rows * R.cell);
   ctx.drawImage(R.overlay, 0, 0);
 
   ctx.font = R.font;
