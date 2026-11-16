@@ -88,3 +88,80 @@ test('releasing the pointer avoids a cross-pond streak on reentry and reduced mo
   tick(w, 0.1, { x: 450, y: 300, active: true })
   assert.equal(energy(w), 0)
 })
+
+test('a long flick applies continuous swept pressure, matching dense spatial quadrature', () => {
+  const w = new WaterSurface(1440, 900)
+  const x = 700, y = 400, travelX = 1100, travelY = 240, pressure = 20
+  w.propagate(x, y, pressure, travelX, travelY)
+  // Independently integrate a thousand Gaussian source positions along a flick.
+  // Midpoint-only stamping fails this check for the higher spatial frequencies.
+  for (const [mx, my] of [[1, 0], [3, 5], [17, 2], [31, 7]]) {
+    const kx = 2 * Math.PI * mx / (w.cols * w.dx)
+    const ky = 2 * Math.PI * my / (w.rows * w.dy)
+    const i = my * w.cols + mx
+    let re = 0, im = 0
+    for (let j = 0; j < 10000; j++) {
+      const t = (j + 0.5) / 10000 - 0.5
+      const phase = -kx * ((x + t * travelX) / WATER.pixelsPerMetre + w.cols * w.dx / 4)
+        - ky * ((y + t * travelY) / WATER.pixelsPerMetre + w.rows * w.dy / 4)
+      re += Math.cos(phase) / 10000; im += Math.sin(phase) / 10000
+    }
+    const scale = pressure * w.forceVelocity[i] * w.decay[i]
+    assert.ok(Math.abs(w.vRe[i] / scale - re) < 1e-6)
+    assert.ok(Math.abs(w.vIm[i] / scale - im) < 1e-6)
+  }
+})
+
+test('a quick out-and-back turn between frames retains both parts of the wake', () => {
+  const w = new WaterSurface(700, 400)
+  const pointer = { x: 100, y: 200, active: true }
+  w.advance(1 / 120, pointer)
+  w.queuePointer(100, 200); w.queuePointer(600, 200); w.queuePointer(100, 200)
+  w.advance(1 / 60, pointer)
+  assert.ok(energy(w) > 0)
+  assert.ok(w.heights.every(Number.isFinite))
+})
+
+test('leaving before the next frame keeps the final flick and resets reentry history', () => {
+  const w = new WaterSurface(700, 400)
+  w.advance(1 / 120, { x: 100, y: 200, active: true })
+  w.queuePointer(400, 200); w.queuePointer(699, 200); w.finishPointer()
+  w.advance(1 / 60, { x: 699, y: 200, active: false })
+  assert.ok(energy(w) > 0)
+  assert.equal(w.previous, null)
+  assert.equal(w.pendingPointer.length, 0)
+  assert.equal(w.pressure, 0)
+})
+
+test('a single fast flick stays visible across its middle after five-shade pixel rendering', () => {
+  for (const [width, height, start, end] of [
+    [1440, 550, { x: 100, y: 275 }, { x: 1300, y: 275 }],
+    [1440, 900, { x: 200, y: 200 }, { x: 1240, y: 700 }],
+    [1440, 900, { x: 1240, y: 700 }, { x: 200, y: 200 }],
+  ]) {
+    const w = new WaterSurface(width, height), cell = 9
+    const cols = Math.ceil(width / cell), rows = Math.ceil(height / cell)
+    const pixels = new Uint32Array(cols * rows), scratch = new Uint32Array(pixels.length)
+    const flatWater = 0xff302d20
+    w.advance(1 / 60, { ...start, active: true })
+    w.queuePointer(end.x, end.y)
+    w.advance(1 / 60, { ...end, active: true })
+    const dx = end.x - start.x, dy = end.y - start.y, length = Math.hypot(dx, dy)
+    for (let frame = 1; frame <= 12; frame++) {
+      w.advance(1 / 60, { ...end, active: true })
+      if (![1, 6, 12].includes(frame)) continue
+      pixels.fill(flatWater); w.refract(pixels, scratch, cols, rows, cell)
+      const bins = Array(8).fill(0)
+      for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+        const px = (x + 0.5) * cell - start.x, py = (y + 0.5) * cell - start.y
+        const along = (px * dx + py * dy) / (length * length)
+        const across = Math.abs(px * dy - py * dx) / length
+        if (along < 0.1 || along >= 0.9 || across > 100 || pixels[y * cols + x] === flatWater) continue
+        bins[Math.floor((along - 0.1) / 0.1)]++
+      }
+      assert.ok(bins.every(n => n >= 2), `missing rendered middle at frame ${frame}: ${bins}`)
+    }
+    // The stroke boost must not be stored as sustained endpoint pressure.
+    assert.ok(w.pressure < 1)
+  }
+})

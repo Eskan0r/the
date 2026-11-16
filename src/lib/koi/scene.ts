@@ -838,12 +838,16 @@ window.addEventListener("pointerdown", (event) => {
 }, { signal });
 window.addEventListener("pointermove", (event) => {
   if (event.pointerType !== "mouse") return;
-  const x = event.clientX * R.dpr, y = event.clientY * R.dpr;
-  const moved = x !== pointer.physicalX || y !== pointer.physicalY;
-  movePondPointer(pointer, x, y, R.W, R.H, moved && cursorCarry.carrier ? mouthPoint(cursorCarry.carrier) : undefined);
-  if (moved) dropCursor();
+  const samples = event.getCoalescedEvents?.() || [];
+  for (const sample of samples.length ? samples : [event]) {
+    const x = sample.clientX * R.dpr, y = sample.clientY * R.dpr;
+    const moved = x !== pointer.physicalX || y !== pointer.physicalY;
+    movePondPointer(pointer, x, y, R.W, R.H, moved && cursorCarry.carrier ? mouthPoint(cursorCarry.carrier) : undefined);
+    if (moved) dropCursor();
+    waterSurface.queuePointer(pointer.x / R.dpr, pointer.y / R.dpr);
+  }
 }, { signal });
-document.addEventListener("pointerleave", () => { pointer.active = false; waterSurface.release(); dropCursor(true); }, { signal });
+document.addEventListener("pointerleave", () => { pointer.active = false; waterSurface.finishPointer(); dropCursor(true); }, { signal });
 window.addEventListener("blur", () => { pointer.active = false; waterSurface.release(); dropCursor(true); }, { signal });
 document.addEventListener("visibilitychange", () => {
   pointer.active = false;

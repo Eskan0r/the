@@ -29,11 +29,30 @@ conditions. Its zero mode is zero, so interaction does not add net water volume.
 
 Each mode uses the analytical **damped, forced oscillator solution** over a
 1/120-second interval with pressure held constant at the path midpoint.
-Positions interpolate over the elapsed simulation steps; pressure eases over
-45 ms. A Gaussian footprint has an analytical Fourier transform, so moving the
+Coalesced mouse samples are retained between animation frames and their path
+is resampled over the elapsed simulation steps; pressure eases over 45 ms.
+Each step averages the Gaussian footprint over its entire travelled segment:
+its Fourier pressure is multiplied by `sinc(k dot travel / 2)` at the segment
+midpoint. Fast flicks therefore deposit continuous pressure instead of separated
+stamps, without increasing the number of simulation steps. Axis sine/cosine
+tables avoid evaluating a transcendental function for every Fourier mode.
+The pressure is spatially averaged over a step; its exact time-varying phase
+within that step is still approximated. A Gaussian footprint has an analytical
+Fourier transform, so moving the
 source does not require FFTs of a newly rasterized force image. One inverse 2D
 FFT reconstructs the height field per rendered update. There is no hardcoded
 V, wake angle, expanding radius, or artificial ring speed.
+
+Fast-stroke input additionally compensates for short dwell time: pressure is
+scaled by the travelled distance per footprint diameter when that exceeds one.
+The source uses the current measured movement strength instead of waiting for
+the 45 ms easing on a long flick, with an additional visibility impulse ramping
+to 4x once a step crosses two footprint diameters. This boost applies only to
+the swept forcing; it is not stored as sustained endpoint pressure. Otherwise,
+the time-averaged line becomes so weak that the five-level palette quantizes
+its entire middle to zero. This is an intentionally tuned mouse-input model,
+not a calibrated relationship between a real object's speed and pressure.
+The wave evolution, dispersion, and coarse rendering are unchanged.
 
 The natural response includes gravity/capillary dispersion, superposition,
 interference, a trailing wake, transient waves when starting/stopping/turning,
@@ -55,7 +74,7 @@ finite source size, speed, capillarity, and depth affect the visible wake.
 | Uniform depth | 0.35 m | Assumed pond depth |
 | Scale | 700 CSS pixels/m | Assumed scene scale; independent of device pixel ratio |
 | Pressure footprint radius | max(0.012 m, 1.05 grid spacings) | Smooth source, widened when needed to resolve it |
-| Moving source peak pressure | up to 26 Pa | Interaction tuning, proportional to speed below 0.65 m/s |
+| Moving source base pressure | up to 26 Pa | Proportional to speed below 0.65 m/s, with swept-input visibility scaling described above |
 | Click pressure | 260 Pa for 1/120 s | Small pressure impulse, not a resolved falling droplet |
 | Additional pond loss | 0.45 s⁻¹ | Phenomenological attenuation; not molecular viscosity |
 
@@ -78,8 +97,12 @@ The apparent rendering depth is 0.22 m. Lighting is an artistic approximation of
 directional sky reflection based on the same slope, with stronger contrast for
 readability on the dark pixel background. This is not a radiometrically accurate
 Fresnel/caustics renderer. Food and lily pads render above the refracted layer.
+Wake lighting and refraction use 2-by-2 pond-grid blocks and five hard lighting
+levels; the submerged fish retain their original pixel detail. This rendering
+quantization does not alter the simulated height field.
 Reduced-motion mode scales input amplitudes to 20%, retaining physical wave
-timing. Leaving/blurring clears pointer history so reentry cannot draw a streak
+timing. Leaving consumes any final queued flick before clearing pointer history;
+blurring clears it immediately, so reentry cannot draw a streak
 across the pond. A fish carrying the cursor does not continuously force waves.
 
 ## Scope and limitations
@@ -121,10 +144,19 @@ The water tests check physical dispersion limits and minimum phase speed,
 an analytical damped Fourier mode and inverse FFT reconstruction, a calm pond,
 splash symmetry and zero mean, energy decay, trailing wake energy, 30/60/120 Hz
 agreement, pointer reentry, and reduced-motion amplitude scaling.
+Additional regressions compare long swept pressure against dense spatial
+quadrature and check out-and-back flicks and exit before the next frame.
+The rendered-output regression performs one full-width horizontal or diagonal
+flick and checks all eight sections of its middle after five-shade rendering
+at 33, 117, and 217 ms. Unlike the spectral-force tests, this catches a wake
+that exists numerically but disappears under pixel quantization.
 
 Local Chromium checks exercised desktop mouse wakes/coasting, click feeding,
 mobile taps at device scale factor 2, and reduced motion with no browser
 exceptions. At 1440×900, the instrumented local run averaged approximately 7 ms
 for wave updates and 1.2 ms for refraction; these are development-machine
-measurements, not a guarantee for other hardware. Screenshots were inspected
+measurements, not a guarantee for other hardware. After the swept-input update,
+an alternating full-width-flick stress test at 1920-by-1080 averaged 12.2 ms
+of total animation-frame work with a 15.2 ms 95th percentile, within a 60 fps
+budget on the development machine. Screenshots were inspected
 at desktop and mobile sizes and the lighting adjusted for visibility.

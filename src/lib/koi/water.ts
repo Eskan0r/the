@@ -32,8 +32,9 @@ class FourierAxis {
       const j = this.reverse[i]
       if (j <= i) continue
       const a = offset + i * stride, b = offset + j * stride
-      ;[re[a], re[b]] = [re[b], re[a]]
-      ;[im[a], im[b]] = [im[b], im[a]]
+      const real = re[a], imaginary = im[a]
+      re[a] = re[b]; re[b] = real
+      im[a] = im[b]; im[b] = imaginary
     }
     for (let len = 2; len <= n; len *= 2) {
       const half = len / 2, jump = n / len
@@ -57,6 +58,7 @@ export class WaterSurface {
   readonly heights: Float64Array
   readonly dx: number
   readonly dy: number
+  private readonly footprintPixels: number
   private readonly xFFT: FourierAxis
   private readonly yFFT: FourierAxis
   private readonly hRe: Float64Array
@@ -73,9 +75,15 @@ export class WaterSurface {
   private readonly decay: Float64Array
   private readonly phaseX: Float64Array
   private readonly phaseY: Float64Array
+  private readonly sweepX: Float64Array
+  private readonly sweepY: Float64Array
+  private readonly sweepPhaseX: Float64Array
+  private readonly sweepPhaseY: Float64Array
   private remainder = 0
   private previous: { x: number; y: number } | null = null
   private pressure = 0
+  private pendingPointer: { x: number; y: number }[] = []
+  private pointerEnded = false
   private impulse: { x: number; y: number; strength: number } | null = null
 
   constructor(readonly width: number, readonly height: number) {
@@ -91,8 +99,11 @@ export class WaterSurface {
     this.wSine = new Float64Array(n); this.decay = new Float64Array(n)
     this.forceHeight = new Float64Array(n); this.forceVelocity = new Float64Array(n)
     this.phaseX = new Float64Array(this.cols * 2); this.phaseY = new Float64Array(this.rows * 2)
+    this.sweepX = new Float64Array(this.cols); this.sweepY = new Float64Array(this.rows)
+    this.sweepPhaseX = new Float64Array(this.cols * 2); this.sweepPhaseY = new Float64Array(this.rows * 2)
     // Resolve the pressure footprint instead of aliasing a point force.
     const radius = Math.max(0.012, this.dx * 1.05, this.dy * 1.05)
+    this.footprintPixels = 2 * radius * WATER.pixelsPerMetre
     const normalise = n * TAU * radius * radius / (this.cols * this.dx * this.rows * this.dy)
     for (let y = 0; y < this.rows; y++) for (let x = 0; x < this.cols; x++) {
       const i = y * this.cols + x
@@ -120,7 +131,17 @@ export class WaterSurface {
   }
 
   // Reset the input history on leave/blur/resize, without deleting existing waves.
-  release() { this.previous = null; this.pressure = 0 }
+  release() { this.previous = null; this.pressure = 0; this.pendingPointer.length = 0; this.pointerEnded = false }
+  queuePointer(x: number, y: number) {
+    if (this.pointerEnded) this.release()
+    const last = this.pendingPointer[this.pendingPointer.length - 1]
+    if (last?.x === x && last?.y === y) return
+    // Bound work even with a high-polling-rate mouse or a stalled browser tab.
+    if (this.pendingPointer.length >= 256) this.pendingPointer[this.pendingPointer.length - 1] = { x, y }
+    else this.pendingPointer.push({ x, y })
+  }
+  // Let the next animation frame consume the final movement before releasing.
+  finishPointer() { this.pointerEnded = true }
   splash(x: number, y: number, strength = 1) {
     this.impulse = { x, y, strength: Math.max(0, Math.min(2, strength)) }
   }
@@ -130,21 +151,60 @@ export class WaterSurface {
     const steps = Math.floor((this.remainder + 1e-9) / STEP)
     if (!steps) return
     this.remainder -= steps * STEP
-    const previous = this.previous || pointer
-    const distance = pointer.active && this.previous ? Math.hypot(pointer.x - previous.x, pointer.y - previous.y) : 0
+    const queued = this.pendingPointer
+    const active = pointer.active || queued.length > 0
+    const previous = this.previous || queued[0] || pointer
+    const path = [previous, ...queued]
+    if (pointer.active && !this.pointerEnded) path.push(pointer)
+    const lengths = [0]
+    let distance = 0
+    for (let i = 1; i < path.length; i++) {
+      distance += Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y)
+      lengths.push(distance)
+    }
     const speed = distance / (steps * STEP * WATER.pixelsPerMetre)
-    const target = pointer.active ? 26 * Math.min(speed / 0.65, 1) * intensity : 0
+    const target = active ? 26 * Math.min(speed / 0.65, 1) * intensity : 0
     const splash = this.impulse
+    let segment = 1, from = previous
+    const atDistance = (d: number) => {
+      while (segment < path.length - 1 && lengths[segment] < d) segment++
+      const a = path[segment - 1], b = path[segment] || a
+      const span = (lengths[segment] || 0) - lengths[segment - 1]
+      const t = span > 0 ? Math.max(0, Math.min(1, (d - lengths[segment - 1]) / span)) : 0
+      return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
+    }
     for (let s = 0; s < steps; s++) {
-      const t = (s + 0.5) / steps
+      const to = atDistance(distance * (s + 1) / steps)
       this.pressure += (target - this.pressure) * (1 - Math.exp(-STEP / 0.045))
-      const x = splash && s === 0 ? splash.x : previous.x + (pointer.x - previous.x) * t
-      const y = splash && s === 0 ? splash.y : previous.y + (pointer.y - previous.y) * t
-      const pressure = splash && s === 0 ? 260 * splash.strength * intensity : this.pressure
-      this.propagate(x, y, pressure)
+      const x = splash && s === 0 ? splash.x : (from.x + to.x) / 2
+      const y = splash && s === 0 ? splash.y : (from.y + to.y) / 2
+      // A time-averaged source gets weaker per pixel as travel grows. Once
+      // spread over a flick, it can fall entirely below the pixel palette's
+      // first shade. Keep impulse per footprint of travel instead, so the
+      // middle of a fast stroke remains visible. Do not retain this boost in
+      // `this.pressure`, which would leave an oversized splash at the endpoint.
+      const coverage = Math.max(1, Math.hypot(to.x - from.x, to.y - from.y) / this.footprintPixels)
+      // A flick can start and finish before the 45 ms input easing catches up.
+      // Use its measured movement strength along the sweep, while easing the
+      // ordinary local footprint as before.
+      const sweptPressure = this.pressure + (target - this.pressure) * Math.min(1, coverage - 1)
+      // Retain a short visible impulse at each crossed footprint even when its
+      // real dwell time is far shorter than a display frame. This is input
+      // tuning for the coarse palette, not a change to wave propagation.
+      const flickImpulse = 1 + 3 * Math.min(1, coverage - 1)
+      const pressure = splash && s === 0 ? 260 * splash.strength * intensity : sweptPressure * coverage * flickImpulse
+      // Integrate the footprint along the whole travelled segment, including
+      // flicks spanning many cells within one fixed step. Cost stays bounded.
+      const sweeping = !(splash && s === 0) && distance > 0
+      this.propagate(x, y, pressure,
+        sweeping ? to.x - from.x : 0,
+        sweeping ? to.y - from.y : 0)
+      from = to
     }
     this.impulse = null
-    this.previous = pointer.active ? { x: pointer.x, y: pointer.y } : null
+    this.previous = pointer.active && !this.pointerEnded ? { x: pointer.x, y: pointer.y } : null
+    queued.length = 0
+    if (this.pointerEnded) { this.pointerEnded = false; this.pressure = 0 }
     this.heights.set(this.hRe); this.workIm.set(this.hIm)
     for (let y = 0; y < this.rows; y++) this.xFFT.inverse(this.heights, this.workIm, y * this.cols, 1)
     for (let x = 0; x < this.cols; x++) this.yFFT.inverse(this.heights, this.workIm, x, this.cols)
@@ -152,23 +212,41 @@ export class WaterSurface {
     for (let i = 0; i < n; i++) this.heights[i] /= n
   }
 
-  private propagate(x: number, y: number, pressure: number) {
+  private propagate(x: number, y: number, pressure: number, travelX = 0, travelY = 0) {
+    const sweep = Math.hypot(travelX, travelY) > 1
     if (pressure > 1e-8) {
       const mx = x / WATER.pixelsPerMetre + this.cols * this.dx / 4
       const my = y / WATER.pixelsPerMetre + this.rows * this.dy / 4
       for (let i = 0; i < this.cols; i++) {
         const a = -this.waveNumber(i, this.cols, this.dx) * mx
         this.phaseX[i * 2] = Math.cos(a); this.phaseX[i * 2 + 1] = Math.sin(a)
+        if (sweep) {
+          const angle = this.waveNumber(i, this.cols, this.dx) * travelX / (2 * WATER.pixelsPerMetre)
+          this.sweepX[i] = angle
+          this.sweepPhaseX[i * 2] = Math.sin(angle); this.sweepPhaseX[i * 2 + 1] = Math.cos(angle)
+        }
       }
       for (let i = 0; i < this.rows; i++) {
         const a = -this.waveNumber(i, this.rows, this.dy) * my
         this.phaseY[i * 2] = Math.cos(a); this.phaseY[i * 2 + 1] = Math.sin(a)
+        if (sweep) {
+          const angle = this.waveNumber(i, this.rows, this.dy) * travelY / (2 * WATER.pixelsPerMetre)
+          this.sweepY[i] = angle
+          this.sweepPhaseY[i * 2] = Math.sin(angle); this.sweepPhaseY[i * 2 + 1] = Math.cos(angle)
+        }
       }
     }
     for (let y = 0; y < this.rows; y++) for (let x = 0; x < this.cols; x++) {
       const i = y * this.cols + x
-      const pr = pressure * (this.phaseX[x * 2] * this.phaseY[y * 2] - this.phaseX[x * 2 + 1] * this.phaseY[y * 2 + 1])
-      const pi = pressure * (this.phaseX[x * 2] * this.phaseY[y * 2 + 1] + this.phaseX[x * 2 + 1] * this.phaseY[y * 2])
+      // Fourier transform of a uniformly swept Gaussian: midpoint phase times
+      // sinc(k dot travel / 2). This deposits a continuous line, not two stamps.
+      const a = sweep ? this.sweepX[x] + this.sweepY[y] : 0
+      // sin(a+b) from cached axis phases avoids a transcendental per mode.
+      const sine = sweep ? this.sweepPhaseX[x * 2] * this.sweepPhaseY[y * 2 + 1]
+        + this.sweepPhaseX[x * 2 + 1] * this.sweepPhaseY[y * 2] : 0
+      const p = pressure * (Math.abs(a) > 1e-6 ? sine / a : 1)
+      const pr = p * (this.phaseX[x * 2] * this.phaseY[y * 2] - this.phaseX[x * 2 + 1] * this.phaseY[y * 2 + 1])
+      const pi = p * (this.phaseX[x * 2] * this.phaseY[y * 2 + 1] + this.phaseX[x * 2 + 1] * this.phaseY[y * 2])
       const hr = this.hRe[i], hi = this.hIm[i], vr = this.vRe[i], vi = this.vIm[i]
       const c = this.cosine[i], sw = this.sineOverW[i], ws = this.wSine[i], d = this.decay[i]
       this.hRe[i] = (hr * c + vr * sw + pr * this.forceHeight[i]) * d
