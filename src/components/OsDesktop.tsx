@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import '../styles/globals.css'
 import Desktop from './desktop/Desktop'
 import Taskbar from './desktop/Taskbar'
 import WindowManager from './window/WindowManager'

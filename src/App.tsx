@@ -1,8 +1,9 @@
 import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import './styles/globals.css'
-import LandingPage from './pages/LandingPage'
+import './styles/base.css'
+import KoiPage from './pages/KoiPage'
 
+const LandingPage = lazy(() => import('./pages/LandingPage'))
 const OsDesktop = lazy(() => import('./components/OsDesktop'))
 
 function useIsOsSubdomain() {
@@ -23,7 +24,11 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/" element={<KoiPage />} />
+      <Route
+        path="/archive/original"
+        element={<Suspense fallback={null}><LandingPage /></Suspense>}
+      />
       <Route
         path="/os"
         element={<Navigate to="https://os.ronakchavva.com" replace />}
