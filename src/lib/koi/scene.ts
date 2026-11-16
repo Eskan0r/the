@@ -3,6 +3,7 @@ import { createTail, updateTail, spinePoint, unbendPoint } from './tail'
 import { createPond } from './environment'
 import { beginBite, advanceBite } from './bite'
 import { pondBoundary } from './boundary'
+import { createCursorCarry, advanceCursor, releaseCursor, movePondPointer } from './cursor'
 // Koi scene adapted from Pawan-webdeveloper/Ascii-Animals-extension (MIT).
 // Upstream: https://github.com/Pawan-webdeveloper/Ascii-Animals-extension
 // See LICENSE in this directory. Only the koi sampler and canvas engine
@@ -243,7 +244,24 @@ let bokehs = [];
 let seedCounter = 1;
 let simTime = 0;
 let current = DEFAULTS.animal; // the animal shown in this tab (can differ from the saved pick in random mode)
-const pointer = { x: -1e9, y: -1e9, active: false };
+const pointer = { x: -1e9, y: -1e9, active: false, virtual: false, physicalX: undefined, physicalY: undefined };
+const cursorCarry = createCursorCarry();
+const cursorHost = world.parentElement || world;
+const originalCursor = cursorHost.style.cursor;
+const cursorImage = new Image();
+cursorImage.src = '/cursors/windows-arrow.png';
+function dropCursor(resetPosition = false) {
+  releaseCursor(cursorCarry);
+  if (resetPosition) {
+    pointer.virtual = false;
+    pointer.physicalX = pointer.physicalY = undefined;
+  }
+  cursorHost.style.cursor = pointer.virtual ? "none" : originalCursor;
+}
+function mouthPoint(e) {
+  const unit = scaleFor(e) * R.cell;
+  return { fish: e, x: e.x + Math.cos(e.heading) * 8 * unit, y: e.y + Math.sin(e.heading) * 8 * unit };
+}
 const foods = []; // koi pellets: { x, y, vx, vy, age, life, tint }
 const ripples = []; // tap feedback: { x, y, age, dur, maxR, chars, color }
 
@@ -364,6 +382,9 @@ function step(dt) {
   const t = simTime;
   const all = entities.concat(bokehs);
   const reachPx = tapReach();
+  const guests = entities.filter(e => !e.leaving && e.fade > 0.8 && (!e.bite || cursorCarry.carrier === e)).map(mouthPoint);
+  advanceCursor(cursorCarry, dt, pointer, guests, R.dpr);
+  cursorHost.style.cursor = cursorCarry.carrier || pointer.virtual ? "none" : originalCursor;
 
   // pellets drift apart a little, then sit and slowly dissolve
   for (const f of foods) {
@@ -454,6 +475,17 @@ function step(dt) {
           continue;
         }
       }
+    }
+
+    // One curious fish approaches an idle cursor; ownership blocks all others.
+    if (cursorCarry.interested === e && !foods.length) {
+      const mouth = mouthPoint(e);
+      const gap = Math.hypot(pointer.x - mouth.x, pointer.y - mouth.y) || 1;
+      dx += (pointer.x - mouth.x) / gap * 6;
+      dy += (pointer.y - mouth.y) / gap * 6;
+      boost = Math.min(1.5, Math.max(0.4, gap / (40 * R.dpr)));
+      turnMul = Math.max(turnMul, 3);
+      crowd = 0.3;
     }
 
     if (!e.bokeh) {
@@ -696,6 +728,29 @@ function render(dt) {
     bctx.imageSmoothingEnabled = false;
     bctx.drawImage(R.blo, 0, 0, R.cols * R.cell, R.rows * R.cell);
   }
+  drawCarriedCursor();
+}
+
+function drawCarriedCursor() {
+  if (!cursorCarry.carrier && !pointer.virtual) return;
+  const position = cursorCarry.carrier ? mouthPoint(cursorCarry.carrier) : pointer;
+  const x = position.x / R.dpr, y = position.y / R.dpr;
+  // An arrow at native cursor size, above the pond and its pixel grid.
+  ctx.save();
+  ctx.setTransform(R.dpr, 0, 0, R.dpr, 0, 0);
+  ctx.translate(x, y);
+  if (cursorImage.complete && cursorImage.naturalWidth) {
+    ctx.drawImage(cursorImage, 0, 0, 32, 32);
+    ctx.restore();
+    return;
+  }
+  ctx.beginPath();
+  ctx.moveTo(0, 0); ctx.lineTo(0, 18); ctx.lineTo(5, 13);
+  ctx.lineTo(9, 21); ctx.lineTo(12, 19); ctx.lineTo(8, 12);
+  ctx.lineTo(15, 12); ctx.closePath();
+  ctx.fillStyle = "#fff"; ctx.strokeStyle = "#101619"; ctx.lineWidth = 1.5;
+  ctx.lineJoin = "round"; ctx.fill(); ctx.stroke();
+  ctx.restore();
 }
 
 // pellets float on the surface, so they sit above the koi
@@ -757,21 +812,35 @@ syncPopulation(true);
 render(0);
 
 window.addEventListener("resize", () => {
+  dropCursor(true);
+  pointer.active = false;
   resize();
   syncPopulation();
 }, { signal });
 window.addEventListener("pointerdown", (event) => {
+  if (event.pointerType !== "mouse") dropCursor(true);
+  if (cursorCarry.carrier) {
+    const mouth = mouthPoint(cursorCarry.carrier);
+    pointer.x = clamp(mouth.x, 0, R.W - 1);
+    pointer.y = clamp(mouth.y, 0, R.H - 1);
+    pointer.virtual = true;
+  }
+  dropCursor();
   if (event.button !== 0 || !event.isPrimary) return;
-  tap(event.clientX * R.dpr, event.clientY * R.dpr);
+  tap(pointer.virtual ? pointer.x : event.clientX * R.dpr, pointer.virtual ? pointer.y : event.clientY * R.dpr);
 }, { signal });
 window.addEventListener("pointermove", (event) => {
-  pointer.x = event.clientX * R.dpr;
-  pointer.y = event.clientY * R.dpr;
-  pointer.active = true;
+  if (event.pointerType !== "mouse") return;
+  const x = event.clientX * R.dpr, y = event.clientY * R.dpr;
+  const moved = x !== pointer.physicalX || y !== pointer.physicalY;
+  movePondPointer(pointer, x, y, R.W, R.H, moved && cursorCarry.carrier ? mouthPoint(cursorCarry.carrier) : undefined);
+  if (moved) dropCursor();
 }, { signal });
-document.addEventListener("pointerleave", () => { pointer.active = false; }, { signal });
-window.addEventListener("blur", () => { pointer.active = false; }, { signal });
+document.addEventListener("pointerleave", () => { pointer.active = false; dropCursor(true); }, { signal });
+window.addEventListener("blur", () => { pointer.active = false; dropCursor(true); }, { signal });
 document.addEventListener("visibilitychange", () => {
+  pointer.active = false;
+  dropCursor(true);
   cancelAnimationFrame(animationId);
   last = 0;
   if (!document.hidden) animationId = requestAnimationFrame(frame);
@@ -780,6 +849,7 @@ reducedMotion.addEventListener("change", () => syncPopulation(), { signal });
 if (!document.hidden) animationId = requestAnimationFrame(frame);
 
 return () => {
+  dropCursor(true);
   events.abort();
   cancelAnimationFrame(animationId);
 };

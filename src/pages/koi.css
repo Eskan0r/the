@@ -5,6 +5,7 @@
   background: #0d1016;
   isolation: isolate;
   touch-action: manipulation;
+  cursor: url('/cursors/windows-arrow.png') 0 0, default;
 }
 
 .koi-pond canvas {
