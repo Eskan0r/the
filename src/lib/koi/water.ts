@@ -188,26 +188,34 @@ export class WaterSurface {
   }
 
   // Refract submerged fish/bed, then light the surface using its normal.
+  // Wake shading uses 2x2 pond-square blocks; fish retain their original pixels.
   // Floating food and leaves are drawn afterwards by the scene.
   refract(pixels: Uint32Array, source: Uint32Array, cols: number, rows: number, cell: number) {
     source.set(pixels)
     const epsilonX = this.dx * WATER.pixelsPerMetre, epsilonY = this.dy * WATER.pixelsPerMetre
-    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
-      const px = (x + 0.5) * cell, py = (y + 0.5) * cell
+    const block = 2
+    for (let y = 0; y < rows; y += block) for (let x = 0; x < cols; x += block) {
+      const px = (x + block / 2) * cell, py = (y + block / 2) * cell
       const sx = (this.sample(px + epsilonX, py) - this.sample(px - epsilonX, py)) / (2 * this.dx)
       const sy = (this.sample(px, py + epsilonY) - this.sample(px, py - epsilonY)) / (2 * this.dy)
       // Near-normal Snell refraction: apparent shift ~= depth*(1-1/1.333)*slope.
       const bend = 0.22 * (1 - 1 / 1.333) * WATER.pixelsPerMetre / cell
-      const ox = Math.max(0, Math.min(cols - 1, Math.round(x + sx * bend)))
-      const oy = Math.max(0, Math.min(rows - 1, Math.round(y + sy * bend)))
-      const p = source[oy * cols + ox]
+      const shiftX = Math.round(sx * bend), shiftY = Math.round(sy * bend)
       const directional = -sx * 0.65 - sy * 0.76
       // Broad sky reflection + a glancing highlight, zero on a flat surface.
-      const light = Math.max(-36, Math.min(85, directional * 950 + (sx * sx + sy * sy) * 3500))
-      const r = Math.max(0, Math.min(255, (p & 255) + light * 0.72)) | 0
-      const g = Math.max(0, Math.min(255, ((p >>> 8) & 255) + light * 0.92)) | 0
-      const b = Math.max(0, Math.min(255, ((p >>> 16) & 255) + light)) | 0
-      pixels[y * cols + x] = (255 << 24) | (b << 16) | (g << 8) | r
+      const surfaceLight = Math.max(-36, Math.min(85, directional * 950 + (sx * sx + sy * sy) * 3500))
+      // Five hard shade levels, with no gradients between wake blocks.
+      // Quantize only the displayed shade; the height field stays continuous.
+      const light = Math.max(-24, Math.min(72, Math.round(surfaceLight / 24) * 24))
+      for (let by = y; by < Math.min(y + block, rows); by++) for (let bx = x; bx < Math.min(x + block, cols); bx++) {
+        const ox = Math.max(0, Math.min(cols - 1, bx + shiftX))
+        const oy = Math.max(0, Math.min(rows - 1, by + shiftY))
+        const p = source[oy * cols + ox]
+        const r = Math.max(0, Math.min(255, (p & 255) + light * 0.72)) | 0
+        const g = Math.max(0, Math.min(255, ((p >>> 8) & 255) + light * 0.92)) | 0
+        const b = Math.max(0, Math.min(255, ((p >>> 16) & 255) + light)) | 0
+        pixels[by * cols + bx] = (255 << 24) | (b << 16) | (g << 8) | r
+      }
     }
   }
 }
