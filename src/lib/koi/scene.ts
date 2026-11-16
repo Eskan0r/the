@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { createTail, updateTail, spinePoint, unbendPoint } from './tail'
 // Koi scene adapted from Pawan-webdeveloper/Ascii-Animals-extension (MIT).
 // Upstream: https://github.com/Pawan-webdeveloper/Ascii-Animals-extension
 // See LICENSE in this directory. Only the koi sampler and canvas engine
@@ -87,6 +88,7 @@ const WHITE = [240, 244, 255];
    ========================================================================= */
 
 
+const materialPoint = { u: 0, v: 0 };
 const ANIMALS = [
   {
     id: "koi",
@@ -111,14 +113,16 @@ const ANIMALS = [
       { base: [240, 118, 38], patch: [255, 172, 72], thr: 0.68 },
       { base: [214, 220, 228], patch: [176, 186, 202], thr: 0.6 },
     ],
-    prep(e, sway) {
-      e.amp = 1.3 * (0.35 + sway);
+    prep(e) {
+      e.tail ||= createTail(e.phase, e.heading);
     },
     sample(u, v, e) {
+      unbendPoint(e.tail, u, v, materialPoint);
+      u = materialPoint.u;
+      v = materialPoint.v;
       if (u < -12.6 || u > 8.4) return false;
       const P = e.pal;
-      const tw = clamp((8 - u) / 20, 0, 1);
-      const vv = v - e.amp * Math.sin(e.phase - u * 0.34) * tw * tw * 1.6;
+      const vv = v;
       const av = Math.abs(vv);
       let hw = 0;
       if (u > 3.6) hw = 3.0 * Math.sqrt(Math.max(0, 1 - sq((u - 3.6) / 4.7)));
@@ -274,6 +278,7 @@ function makeEntity(A, opts = {}) {
     scareY: 0,
   };
   e.heading = e.target = dirRad + (A.mode === "flow" ? e.baseOff * Math.PI * tune.spread * 0.35 : rand(-1, 1) * Math.PI * tune.spread);
+  e.tail = createTail(e.phase, e.heading);
   return e;
 }
 
@@ -386,7 +391,6 @@ function step(dt) {
       e.speedMod = Math.max(e.speedMod, 0.9);
       e.phaseMod = Math.max(e.phaseMod, 1) * (1 + scare * 1.6);
     }
-    e.phase += dt * A.phaseRate * e.rateMul * e.phaseMod * (0.55 + 0.45 * sp);
 
     // where does it want to go?
     if (A.mode === "flow") {
@@ -485,6 +489,9 @@ function step(dt) {
     const v = A.speed * e.speedMul * e.speedMod * sp * parallax * boost * R.cell * k * 0.6;
     e.x += Math.cos(e.heading) * v * dt;
     e.y += Math.sin(e.heading) * v * dt;
+    // Deformation follows actual movement, without changing steering or speed.
+    updateTail(e.tail, dt * motion, e.heading, v / (R.cell * k * Math.max(motion, 0.001)), settings.sway, e.rateMul);
+    e.phase = e.tail.phase;
 
     // wrap around, re-entering at a fresh spot along the far edge
     const m = reach + 4 * R.cell;
@@ -517,7 +524,7 @@ function rasterize(e, order, buf, transparentBg) {
   const k = scaleFor(e);
   const cx = e.x / R.cell;
   const cy = e.y / R.cell;
-  const rad = A.radius * k;
+  const rad = (A.radius + 2) * k; // room for the rotated caudal fin during a turn
   const i0 = Math.max(0, Math.floor(cx - rad));
   const i1 = Math.min(R.cols - 1, Math.ceil(cx + rad));
   const j0 = Math.max(0, Math.floor(cy - rad));
@@ -591,7 +598,8 @@ function emitTrails(e, dt) {
   const c = Math.cos(ang);
   const s = Math.sin(ang);
   e.trailFlip = (e.trailFlip + 1) % tr.at.length;
-  const [tu, tv] = tr.at[e.trailFlip];
+  const attachment = tr.at[e.trailFlip];
+  const { u: tu, v: tv } = spinePoint(e.tail, attachment[0], attachment[1]);
   const wx = e.x / R.cell + (tu * c - tv * s) * k;
   const wy = e.y / R.cell + (tu * s + tv * c) * k;
   const i = Math.floor(wx);
