@@ -19,7 +19,7 @@ export function beginBite(fish: Fish, pellet: Pellet, unit: number, time: number
   const gap = Math.hypot(dx, dy)
   // Intercept in front of the mouth, several visible cells short of the food.
   // Targets behind/under the body still use the original approach steering.
-  if (gap > 5 * unit || gap < 0.1 * unit || (dx * cs + dy * sn) / gap < 0.45) return false
+  if (gap > 8 * unit || gap < 0.1 * unit || (dx * cs + dy * sn) / gap < 0.45) return false
   fish.bite = { pellet, started: time, x: fish.x, y: fish.y,
     heading: fish.heading, dx, dy, swallowed: false }
   return true

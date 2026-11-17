@@ -85,6 +85,7 @@ export class WaterSurface {
   private pendingPointer: { x: number; y: number }[] = []
   private pointerEnded = false
   private impulse: { x: number; y: number; strength: number } | null = null
+  private freeEvolution = new Map<number, Float64Array[]>()
 
   constructor(readonly width: number, readonly height: number) {
     this.cols = gridSize(width); this.rows = gridSize(height)
@@ -165,6 +166,18 @@ export class WaterSurface {
     const speed = distance / (steps * STEP * WATER.pixelsPerMetre)
     const target = active ? 26 * Math.min(speed / 0.65, 1) * intensity : 0
     const splash = this.impulse
+    // Free waves are linear: compose the fixed-step transition once, then
+    // advance every mode in one pass instead of repeating the full grid loop.
+    if (target === 0 && this.pressure < 1e-8 && !splash) {
+      this.pressure = 0
+      const moving = this.advanceUnforced(steps)
+      this.previous = pointer.active && !this.pointerEnded ? { x: pointer.x, y: pointer.y } : null
+      queued.length = 0
+      this.pointerEnded = false
+      if (moving) this.reconstruct()
+      else this.heights.fill(0)
+      return
+    }
     let segment = 1, from = previous
     const atDistance = (d: number) => {
       while (segment < path.length - 1 && lengths[segment] < d) segment++
@@ -205,11 +218,54 @@ export class WaterSurface {
     this.previous = pointer.active && !this.pointerEnded ? { x: pointer.x, y: pointer.y } : null
     queued.length = 0
     if (this.pointerEnded) { this.pointerEnded = false; this.pressure = 0 }
+    this.reconstruct()
+  }
+
+  private reconstruct() {
     this.heights.set(this.hRe); this.workIm.set(this.hIm)
     for (let y = 0; y < this.rows; y++) this.xFFT.inverse(this.heights, this.workIm, y * this.cols, 1)
     for (let x = 0; x < this.cols; x++) this.yFFT.inverse(this.heights, this.workIm, x, this.cols)
     const n = this.heights.length
     for (let i = 0; i < n; i++) this.heights[i] /= n
+  }
+
+  private advanceUnforced(steps: number) {
+    let coefficients = this.freeEvolution.get(steps)
+    const n = this.hRe.length
+    if (!coefficients) {
+      coefficients = Array.from({ length: 4 }, () => new Float64Array(n))
+      const [aa, ab, ac, ad] = coefficients
+      for (let i = 0; i < n; i++) {
+        const decay = this.decay[i]
+        const a = this.cosine[i] * decay, b = this.sineOverW[i] * decay
+        const c = -this.wSine[i] * decay, d = this.velocityCosine[i] * decay
+        let pa = 1, pb = 0, pc = 0, pd = 1
+        for (let step = 0; step < steps; step++) {
+          const na = a * pa + b * pc, nb = a * pb + b * pd
+          const nc = c * pa + d * pc, nd = c * pb + d * pd
+          pa = na; pb = nb; pc = nc; pd = nd
+        }
+        aa[i] = pa; ab[i] = pb; ac[i] = pc; ad[i] = pd
+      }
+      this.freeEvolution.set(steps, coefficients)
+    }
+    const [a, b, c, d] = coefficients
+    let moving = false
+    for (let i = 0; i < n; i++) {
+      const hr = this.hRe[i], hi = this.hIm[i], vr = this.vRe[i], vi = this.vIm[i]
+      // Spectral magnitudes this small are far below a visible displacement.
+      // Let exhausted modes reach exact rest instead of decaying indefinitely.
+      if (Math.abs(hr) + Math.abs(hi) + Math.abs(vr) + Math.abs(vi) < 1e-14) {
+        this.hRe[i] = this.hIm[i] = this.vRe[i] = this.vIm[i] = 0
+        continue
+      }
+      this.hRe[i] = a[i] * hr + b[i] * vr
+      this.hIm[i] = a[i] * hi + b[i] * vi
+      this.vRe[i] = c[i] * hr + d[i] * vr
+      this.vIm[i] = c[i] * hi + d[i] * vi
+      moving = true
+    }
+    return moving
   }
 
   private propagate(x: number, y: number, pressure: number, travelX = 0, travelY = 0) {

@@ -55,3 +55,19 @@ test('returns smoothly if another fish takes the target during the strike', () =
   advanceBite(fish, [], 1 / 60, 0.6)
   assert.equal(fish.x, 500); assert.equal(fish.bite, undefined)
 })
+
+test('holds farther from the pellet, lunges the full gap, and returns to the hold position', () => {
+  for (const angle of [0, Math.PI / 4, Math.PI, Math.PI * 1.5]) {
+    const unit = 7, fish = { x: 500, y: 500, heading: angle }
+    const pellet = { x: 500 + Math.cos(angle) * 15 * unit, y: 500 + Math.sin(angle) * 15 * unit, age: 1, life: 20 }
+    assert.ok(beginBite(fish, pellet, unit, 0))
+    advanceBite(fish, [pellet], 1 / 60, 0.2)
+    assert.equal(fish.x, 500); assert.equal(fish.y, 500)
+    const result = advanceBite(fish, [pellet], 1 / 60, 0.34)
+    assert.equal(result.eaten, pellet)
+    assert.ok(Math.abs(Math.hypot(fish.x - 500, fish.y - 500) - 7 * unit) < 1e-10)
+    assert.ok(Math.hypot(fish.x + Math.cos(angle) * 8 * unit - pellet.x, fish.y + Math.sin(angle) * 8 * unit - pellet.y) < 1e-10)
+    advanceBite(fish, [pellet], 1 / 60, 0.72)
+    assert.equal(fish.x, 500); assert.equal(fish.y, 500)
+  }
+})

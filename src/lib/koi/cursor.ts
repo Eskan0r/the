@@ -48,14 +48,14 @@ export function advanceCursor<T>(
   if (state.interested !== null) {
     const guest = guests.find(guest => guest.fish === state.interested)
     state.approaching += dt
-    if (!guest || state.approaching > 8) { releaseCursor(state); return }
+    if (!guest || state.approaching > 14) { releaseCursor(state); return }
     if (Math.hypot(guest.x - pointer.x, guest.y - pointer.y) < 16 * dpr) {
       state.carrier = guest.fish; state.interested = null; state.carrying = 0
     }
     return
   }
   if (state.idle < 2.8 || random() >= 1 - Math.exp(-dt * 0.35)) return
-  const nearby = guests.filter(guest => Math.hypot(guest.x - pointer.x, guest.y - pointer.y) < 120 * dpr)
+  const nearby = guests.filter(guest => Math.hypot(guest.x - pointer.x, guest.y - pointer.y) < 220 * dpr)
   if (!nearby.length) return
   state.interested = nearby[Math.min(nearby.length - 1, Math.floor(random() * nearby.length))].fish
   state.approaching = 0

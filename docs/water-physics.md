@@ -93,6 +93,12 @@ conditions. Its zero mode is zero, so interaction does not add net water volume.
 
 Each mode uses the analytical **damped, forced oscillator solution** over a
 1/120-second interval with pressure held constant at the path midpoint.
+When no new pressure or splash is being applied, the fixed-step transition
+matrices are composed and cached for the frame's step count. Free waves then
+advance in one grid pass with the same elapsed-time solution. Exhausted spectral
+modes below a combined magnitude of 1e-14 reach exact rest, avoiding indefinite
+work on invisible residuals. Regression tests compare the composed update with
+the original integrator for every possible one-to-six-step frame duration.
 Coalesced mouse samples are retained between animation frames and their path
 is resampled over the elapsed simulation steps; pressure eases over 45 ms.
 Each step averages the Gaussian footprint over its entire travelled segment:

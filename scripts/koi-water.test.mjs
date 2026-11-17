@@ -41,6 +41,36 @@ test('a single Fourier mode matches the analytical damped oscillator and FFT rec
   assert.ok(Math.abs(w.heights[w.cols / 2] + expected) < 1e-12)
 })
 
+test('batched free-wave evolution matches every original fixed step at variable frame durations', () => {
+  for (let steps = 1; steps <= 6; steps++) {
+    const batched = new WaterSurface(480, 360), reference = new WaterSurface(480, 360)
+    for (const surface of [batched, reference]) {
+      surface.hRe[1] = surface.hRe[surface.cols - 1] = 0.02
+      surface.vIm[3] = 0.003
+      surface.vIm[surface.cols - 3] = -0.003
+    }
+    batched.advance(steps / 120, idle)
+    // Use the original one-step integrator as an independent reference.
+    for (let step = 0; step < steps; step++) reference.propagate(0, 0, 0)
+    reference.reconstruct()
+    for (const key of ['hRe', 'hIm', 'vRe', 'vIm', 'heights']) {
+      for (let i = 0; i < reference[key].length; i++) assert.ok(Math.abs(batched[key][i] - reference[key][i]) < 1e-12)
+    }
+  }
+})
+
+test('exhausted spectral modes reach exact rest and resume correctly after fresh input', () => {
+  const w = new WaterSurface(480, 360)
+  w.hRe[1] = 1e-16
+  w.vIm[2] = -1e-16
+  w.advance(1 / 60, idle)
+  assert.equal(energy(w), 0)
+  assert.ok(w.hRe.every(value => value === 0))
+  w.splash(240, 180)
+  w.advance(1 / 60, idle)
+  assert.ok(energy(w) > 0)
+})
+
 test('a centered splash propagates symmetrically, conserves zero mean, and dissipates', () => {
   const w = new WaterSurface(480, 480)
   w.splash(240, 240)

@@ -39,7 +39,7 @@ test('cancels on leaving the page, losing the fish, or an unsuccessful approach'
   for (const reason of ['leave', 'missing', 'timeout']) {
     const state = createCursorCarry()
     advanceCursor(state, 3, pointer, guests, 1, () => 0)
-    advanceCursor(state, reason === 'timeout' ? 9 : 0.1,
+    advanceCursor(state, reason === 'timeout' ? 15 : 0.1,
       { ...pointer, active: reason !== 'leave' }, reason === 'missing' ? [] : guests, 1, () => 0)
     assert.deepEqual(state, createCursorCarry())
   }
@@ -51,6 +51,21 @@ test('pickup distance scales with display density', () => {
   advanceCursor(state, 3, pointer, [guest], 2, () => 0)
   advanceCursor(state, 0.1, pointer, [guest], 2, () => 0)
   assert.equal(state.carrier, first)
+})
+
+test('fish notice an idle cursor from farther away at either display density', () => {
+  for (const dpr of [1, 2]) {
+    const state = createCursorCarry()
+    const pointer = { x: 300 * dpr, y: 300 * dpr, active: true }
+    const guest = { fish: first, x: 500 * dpr, y: 300 * dpr }
+    advanceCursor(state, 3, pointer, [guest], dpr, () => 0)
+    assert.equal(state.interested, first)
+    advanceCursor(state, 9, pointer, [guest], dpr, () => 0)
+    assert.equal(state.interested, first, 'a longer approach is allowed')
+    const outside = createCursorCarry()
+    advanceCursor(outside, 3, pointer, [{ ...guest, x: 530 * dpr }], dpr, () => 0)
+    assert.equal(outside.interested, null)
+  }
 })
 
 test('mouse control resumes from the mouth and preserves the offset on subsequent moves', () => {
