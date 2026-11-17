@@ -69,6 +69,14 @@ than a sequence of painted rings. The existing pixel pond is rendered through
 the resulting height field. Clicking/tapping applies a short pressure impulse
 while retaining fish feeding.
 
+Touch and pen contact use the same swept pressure path as the mouse, with
+pointer capture retaining a drag until release or cancellation. Coalesced move
+samples are preserved and the final segment is consumed before input ends.
+Dragging does not feed fish; a short tap feeds on release. Holding still produces
+the initial contact ripple without continuously adding pressure. Touch contact
+does not activate mouse-carry behavior. Mobile browser-emulation checks cover
+drag wakes, release, cancellation, a second finger, tap feeding, and mouse input.
+
 ## Research and model selection
 
 The key difference between water and a simple membrane ripple effect is

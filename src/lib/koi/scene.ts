@@ -255,6 +255,8 @@ let seedCounter = 1;
 let simTime = 0;
 let current = DEFAULTS.animal; // the animal shown in this tab (can differ from the saved pick in random mode)
 const pointer = { x: -1e9, y: -1e9, active: false, virtual: false, physicalX: undefined, physicalY: undefined };
+let pointerKind = "mouse";
+let contact = null;
 const cursorCarry = createCursorCarry();
 const cursorHost = world.parentElement || world;
 const originalCursor = cursorHost.style.cursor;
@@ -391,7 +393,7 @@ function step(dt) {
     speed: e.behavior.speed ?? 0, radius: e.A.radius * scaleFor(e) * R.cell }));
   const reachPx = tapReach();
   const guests = entities.filter(e => !e.leaving && e.fade > 0.8 && (!e.bite || cursorCarry.carrier === e)).map(mouthPoint);
-  advanceCursor(cursorCarry, dt, pointer, guests, R.dpr);
+  advanceCursor(cursorCarry, dt, { ...pointer, active: pointer.active && pointerKind === "mouse" }, guests, R.dpr);
   cursorHost.style.cursor = cursorCarry.carrier || pointer.virtual ? "none" : originalCursor;
 
   // pellets drift apart a little, then sit and slowly dissolve
@@ -726,7 +728,7 @@ function render(dt) {
     bctx.imageSmoothingEnabled = false;
     bctx.drawImage(R.blo, 0, 0, R.cols * R.cell, R.rows * R.cell);
   }
-  drawDock(bctx, R.W, R.H, simTime, R.dpr);
+  drawDock(bctx, R.W, R.H, R.dpr);
   drawCarriedCursor();
 }
 
@@ -812,13 +814,26 @@ syncPopulation(true);
 render(0);
 
 window.addEventListener("resize", () => {
+  clearContact();
   dropCursor(true);
   pointer.active = false;
   resize();
   syncPopulation();
 }, { signal });
 window.addEventListener("pointerdown", (event) => {
-  if (event.pointerType !== "mouse") dropCursor(true);
+  if (event.button !== 0 || !event.isPrimary) return;
+  pointerKind = event.pointerType;
+  if (event.pointerType !== "mouse") {
+    event.preventDefault();
+    dropCursor(true);
+    waterSurface.release();
+    contact = { id: event.pointerId, x: event.clientX, y: event.clientY, started: performance.now(), dragged: false };
+    movePondPointer(pointer, event.clientX * R.dpr, event.clientY * R.dpr, R.W, R.H);
+    waterSurface.queuePointer(event.clientX, event.clientY);
+    waterSurface.splash(event.clientX, event.clientY, 0.35);
+    cursorHost.setPointerCapture(event.pointerId);
+    return;
+  }
   if (cursorCarry.carrier) {
     const mouth = mouthPoint(cursorCarry.carrier);
     pointer.x = clamp(mouth.x, 0, R.W - 1);
@@ -830,7 +845,19 @@ window.addEventListener("pointerdown", (event) => {
   tap(pointer.virtual ? pointer.x : event.clientX * R.dpr, pointer.virtual ? pointer.y : event.clientY * R.dpr);
 }, { signal });
 window.addEventListener("pointermove", (event) => {
-  if (event.pointerType !== "mouse") return;
+  if (event.pointerType !== "mouse") {
+    if (!contact || contact.id !== event.pointerId) return;
+    event.preventDefault();
+    const samples = event.getCoalescedEvents?.() || [];
+    for (const sample of samples.length ? samples : [event]) {
+      if (Math.hypot(sample.clientX - contact.x, sample.clientY - contact.y) > 6) contact.dragged = true;
+      movePondPointer(pointer, sample.clientX * R.dpr, sample.clientY * R.dpr, R.W, R.H);
+      waterSurface.queuePointer(pointer.x / R.dpr, pointer.y / R.dpr);
+    }
+    return;
+  }
+  if (contact) return;
+  pointerKind = "mouse";
   const samples = event.getCoalescedEvents?.() || [];
   for (const sample of samples.length ? samples : [event]) {
     const x = sample.clientX * R.dpr, y = sample.clientY * R.dpr;
@@ -840,9 +867,31 @@ window.addEventListener("pointermove", (event) => {
     waterSurface.queuePointer(pointer.x / R.dpr, pointer.y / R.dpr);
   }
 }, { signal });
-document.addEventListener("pointerleave", () => { pointer.active = false; waterSurface.finishPointer(); dropCursor(true); }, { signal });
-window.addEventListener("blur", () => { pointer.active = false; waterSurface.release(); dropCursor(true); }, { signal });
+function clearContact() {
+  const id = contact?.id;
+  contact = null;
+  if (id !== undefined && cursorHost.hasPointerCapture(id)) cursorHost.releasePointerCapture(id);
+}
+function endContact(event, cancelled = false) {
+  if (!contact || contact.id !== event.pointerId) return;
+  const gesture = contact;
+  if (!cancelled) {
+    if (Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 6) gesture.dragged = true;
+    waterSurface.queuePointer(event.clientX, event.clientY);
+  }
+  pointer.active = false;
+  waterSurface.finishPointer();
+  clearContact();
+  if (!cancelled && !gesture.dragged && performance.now() - gesture.started < 450) tap(event.clientX * R.dpr, event.clientY * R.dpr);
+}
+window.addEventListener("pointerup", event => endContact(event), { signal });
+window.addEventListener("pointercancel", event => endContact(event, true), { signal });
+cursorHost.addEventListener("lostpointercapture", event => endContact(event, true), { signal });
+cursorHost.addEventListener("contextmenu", event => { if (contact) event.preventDefault(); }, { signal });
+document.addEventListener("pointerleave", () => { if (contact) return; pointer.active = false; waterSurface.finishPointer(); dropCursor(true); }, { signal });
+window.addEventListener("blur", () => { clearContact(); pointer.active = false; waterSurface.release(); dropCursor(true); }, { signal });
 document.addEventListener("visibilitychange", () => {
+  clearContact();
   pointer.active = false;
   waterSurface.release();
   dropCursor(true);
@@ -854,6 +903,7 @@ reducedMotion.addEventListener("change", () => syncPopulation(), { signal });
 if (!document.hidden) animationId = requestAnimationFrame(frame);
 
 return () => {
+  clearContact();
   dropCursor(true);
   events.abort();
   cancelAnimationFrame(animationId);

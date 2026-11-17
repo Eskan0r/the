@@ -4,7 +4,8 @@
   overflow: hidden;
   background: #79b6a9;
   isolation: isolate;
-  touch-action: manipulation;
+  touch-action: none;
+  -webkit-touch-callout: none;
   cursor: url('/cursors/windows-arrow.png') 0 0, default;
 }
 
