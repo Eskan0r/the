@@ -7,6 +7,7 @@ import { createCursorCarry, advanceCursor, releaseCursor, movePondPointer } from
 import { WaterSurface } from './water'
 import { drawDock } from './dock'
 import { PondSunlight } from './sunlight'
+import { createKoiBehavior, chooseKoiSpawn, planKoiBehavior, advanceKoiCruise } from './behavior'
 // Koi scene adapted from Pawan-webdeveloper/Ascii-Animals-extension (MIT).
 // Upstream: https://github.com/Pawan-webdeveloper/Ascii-Animals-extension
 // See LICENSE in this directory. Only the koi sampler and canvas engine
@@ -280,22 +281,18 @@ function scaleFor(e) {
 }
 
 function makeEntity(A, opts = {}) {
-  const tune = settings.tune[A.id];
-  const dirRad = ((tune.direction - 90) * Math.PI) / 180;
+  const spawn = chooseKoiSpawn(R.W, R.H, entities.filter(e => !e.leaving));
   const e = {
     A,
-    x: opts.x ?? rand(0, R.W),
-    y: opts.y ?? rand(0, R.H),
+    x: opts.x ?? spawn.x,
+    y: opts.y ?? spawn.y,
     z: opts.z ?? Math.pow(Math.random(), 0.85),
     seed: (seedCounter++ * 2654435761) >>> 16,
     pal: A.variants[[0, 1, 2, 4, 0, 2, 1, 3, 4, 0, 2, 1][(seedCounter - 2) % 12]],
     phase: rand(0, TAU),
     rateMul: rand(0.85, 1.15),
     speedMul: rand(0.75, 1.25),
-    baseOff: rand(-1, 1),
     heading: 0,
-    target: 0,
-    retargetAt: 0,
     fade: opts.fade ?? 0,
     leaving: false,
     bokeh: !!opts.bokeh,
@@ -307,7 +304,8 @@ function makeEntity(A, opts = {}) {
     scareX: 0,
     scareY: 0,
   };
-  e.heading = e.target = dirRad + (A.mode === "flow" ? e.baseOff * Math.PI * tune.spread * 0.35 : rand(-1, 1) * Math.PI * tune.spread);
+  e.heading = rand(0, TAU);
+  e.behavior = createKoiBehavior(e.seed);
   e.tail = createTail(e.phase, e.heading);
   return e;
 }
@@ -386,10 +384,11 @@ function tap(x, y) {
 
 function step(dt) {
   const motion = reducedMotion.matches ? 0.3 : 1;
-  const sp = settings.speed * motion;
   simTime += dt * motion;
   const t = simTime;
   const all = entities.concat(bokehs);
+  const neighbors = entities.filter(e => !e.leaving).map(e => ({ id: e.seed, x: e.x, y: e.y, heading: e.heading,
+    speed: e.behavior.speed ?? 0, radius: e.A.radius * scaleFor(e) * R.cell }));
   const reachPx = tapReach();
   const guests = entities.filter(e => !e.leaving && e.fade > 0.8 && (!e.bite || cursorCarry.carrier === e)).map(mouthPoint);
   advanceCursor(cursorCarry, dt, pointer, guests, R.dpr);
@@ -410,8 +409,6 @@ function step(dt) {
 
   for (const e of all) {
     const A = e.A;
-    const tune = settings.tune[A.id];
-    const dirRad = ((tune.direction - 90) * Math.PI) / 180;
 
     e.fade = e.leaving ? Math.max(0, e.fade - dt / 0.6) : Math.min(1, e.fade + dt / 0.9);
     if (e.scared > 0) e.scared = Math.max(0, e.scared - dt / 1.4);
@@ -425,46 +422,49 @@ function step(dt) {
       e.phaseMod = Math.max(e.phaseMod, 1) * (1 + scare * 1.6);
     }
 
-    // Only the final strike overrides movement; ordinary steering stays original.
+    // Preserve the held pause, longer lunge, and recovery around each pellet.
     const bite = advanceBite(e, foods, dt * motion, t);
     if (bite.active) {
+      e.behavior.speed = bite.speed;
+      e.behavior.turnRate = 0;
       if (bite.eaten) addRipple(bite.eaten.x, bite.eaten.y, { dur: 0.7, maxR: 2.5, chars: "~", color: [170, 200, 230] });
       updateTail(e.tail, dt * motion, e.heading, bite.speed / (scaleFor(e) * R.cell), settings.sway, e.rateMul);
       e.phase = e.tail.phase;
       continue;
     }
 
-    // where does it want to go?
-    if (A.mode === "flow") {
-      e.target = dirRad + e.baseOff * Math.PI * tune.spread * 0.35 + (A.wobble ? A.wobble(e, t) * (0.4 + settings.sway * 1.2) : 0);
-    } else if (t >= e.retargetAt) {
-      e.target = dirRad + rand(-1, 1) * Math.PI * tune.spread;
-      e.retargetAt = t + rand(A.retarget[0], A.retarget[1]);
-    }
-
-    let dx = Math.cos(e.target);
-    let dy = Math.sin(e.target);
     const k = scaleFor(e);
     const reach = A.radius * k * R.cell;
+    const parallax = e.bokeh ? 0.55 : 0.55 + 0.45 * e.z;
+    const baseSpeed = A.speed * e.speedMul * e.speedMod * settings.speed * parallax * R.cell * k * 0.6;
+    const plan = planKoiBehavior(e, e.bokeh ? [] : neighbors, R.W, R.H, reach, baseSpeed, t);
+    let dx = plan.x, dy = plan.y;
     let boost = 1;
     let turnMul = 1;
-    let crowd = 1.6;
+    let crowd = 1;
 
     // koi: find the nearest pellet in range and go for it
-    if (A.feeds && foods.length && !e.bokeh && !e.leaving) {
+    if (A.feeds && foods.length && !e.bokeh && !e.leaving && t >= (e.feedingCoastUntil || 0)) {
       const hx = e.x + Math.cos(e.heading) * 6.5 * k * R.cell;
       const hy = e.y + Math.sin(e.heading) * 6.5 * k * R.cell;
       // close koi rush in; koi further out notice more slowly and drift over
       const sense = reachPx * 2.6;
-      let best = null;
-      let bestD = sense;
-      for (const f of foods) {
-        if (f.eaten) continue;
-        const d = Math.hypot(f.x - hx, f.y - hy);
-        if (d < bestD) {
-          bestD = d;
+      let best = e.meal && !e.meal.eaten && foods.includes(e.meal) && e.meal.age < e.meal.life ? e.meal : null;
+      let bestD = best ? Math.hypot(best.x - hx, best.y - hy) : sense;
+      if (!best) for (const f of foods) {
+        if (f.eaten || all.some(other => other !== e && (other.meal === f || other.bite?.pellet === f))) continue;
+        const distance = Math.hypot(f.x - hx, f.y - hy);
+        if (distance < bestD) {
+          bestD = distance;
           best = f;
         }
+      }
+      e.meal = best;
+      // A pellet under the body needs a new approach, not a tight orbit.
+      if (best && Math.hypot(best.x - e.x, best.y - e.y) < 7 * k * R.cell
+        && (best.x - hx) * Math.cos(e.heading) + (best.y - hy) * Math.sin(e.heading) < 0) {
+        e.feedingCoastUntil = t + Math.max(1, 12 * k * R.cell / Math.max(1, baseSpeed));
+        e.meal = best = null;
       }
       if (best) {
         const close = clamp(1 - bestD / reachPx, 0, 1);
@@ -476,9 +476,11 @@ function step(dt) {
         dy += fy * pull;
         boost = far ? 3.2 : 3.6 + 3.0 * close;
         turnMul = far ? 2.2 : 2.6 + 3.5 * close;
-        crowd = far ? 0.8 : 0.35;
+        crowd = 0.7;
         if (bestD < 3.5 * k * R.cell) boost *= 0.45;
         if (beginBite(e, best, k * R.cell, t)) {
+          e.behavior.speed = 0;
+          e.behavior.turnRate = 0;
           updateTail(e.tail, dt * motion, e.heading, 0, settings.sway, e.rateMul);
           e.phase = e.tail.phase;
           continue;
@@ -494,23 +496,12 @@ function step(dt) {
       dy += (pointer.y - mouth.y) / gap * 6;
       boost = Math.min(1.5, Math.max(0.4, gap / (40 * R.dpr)));
       turnMul = Math.max(turnMul, 3);
-      crowd = 0.3;
+      crowd = 0.7;
     }
 
-    if (!e.bokeh) {
-      for (const o of entities) {
-        if (o === e || o.leaving || Math.abs(o.z - e.z) > 0.35) continue;
-        const ox = e.x - o.x;
-        const oy = e.y - o.y;
-        const d = Math.hypot(ox, oy);
-        const lim = (reach + o.A.radius * scaleFor(o) * R.cell) * 0.75;
-        if (d > 0 && d < lim) {
-          const w = (1 - d / lim) * crowd;
-          dx += (ox / d) * w;
-          dy += (oy / d) * w;
-        }
-      }
-    }
+    dx += plan.avoidX * crowd;
+    dy += plan.avoidY * crowd;
+    turnMul = Math.max(turnMul, 1 + plan.avoidUrgency);
 
     if (scare > 0 && !e.bokeh) {
       dx += e.scareX * 7 * scare;
@@ -533,9 +524,8 @@ function step(dt) {
       }
     }
 
-    const parallax = e.bokeh ? 0.55 : 0.55 + 0.45 * e.z;
-    const v = A.speed * e.speedMul * e.speedMod * sp * parallax * boost * R.cell * k * 0.6;
-    const edge = pondBoundary(e.x, e.y, e.heading, v / Math.max(motion, 0.001), reach, R.W, R.H);
+    const targetSpeed = baseSpeed * boost * plan.speedFactor;
+    const edge = pondBoundary(e.x, e.y, e.heading, targetSpeed, reach, R.W, R.H);
     const edgeStrength = Math.hypot(edge.x, edge.y);
     if (edgeStrength > 0) {
       const length = Math.hypot(dx, dy) || 1;
@@ -543,14 +533,9 @@ function step(dt) {
       dy = dy / length + edge.y;
       turnMul = Math.max(turnMul, 1 + Math.min(1.5, edgeStrength * 0.5));
     }
-    const desired = Math.atan2(dy, dx);
-    const turn = A.turn * turnMul * dt;
-    e.heading += clamp(angleDiff(desired, e.heading), -turn, turn);
-
-    e.x += Math.cos(e.heading) * v * dt;
-    e.y += Math.sin(e.heading) * v * dt;
-    // Deformation follows actual movement, without changing steering or speed.
-    updateTail(e.tail, dt * motion, e.heading, v / (R.cell * k * Math.max(motion, 0.001)), settings.sway, e.rateMul);
+    const v = advanceKoiCruise(e, dx, dy, targetSpeed, baseSpeed, dt * motion, Math.min(2.2, turnMul));
+    // Propulsive tail beats soften during a glide while forward inertia remains.
+    updateTail(e.tail, dt * motion, e.heading, v / (R.cell * k) * (plan.stroke || boost > 1.5 ? 1 : 0.28), settings.sway, e.rateMul);
     e.phase = e.tail.phase;
 
     // No wrapping: a fish that drifts out turns back through the same edge.
