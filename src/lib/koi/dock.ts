@@ -37,33 +37,6 @@ function paintDock(width: number, height: number, dpr: number) {
     rect(x + 2, bottom - 4, 1, 1, '#74604a')
   }
 
-  // Three sides are enclosed by timber rails; the bank-side entrance stays open.
-  const fenceX = right - 2, fenceTop = top + 1, fenceBottom = bottom - 2
-  rect(0, fenceTop + 4, fenceX, 2, 'rgba(57,47,35,.15)')
-  rect(0, fenceBottom + 3, fenceX + 3, 2, 'rgba(22,57,55,.19)')
-  rect(fenceX + 3, fenceTop + 4, 2, fenceBottom - fenceTop, 'rgba(22,57,55,.2)')
-  for (const y of [fenceTop, fenceBottom]) {
-    rect(0, y + 1, fenceX + 1, 2, '#70583e')
-    rect(0, y, fenceX + 1, 1, '#ddc199')
-  }
-  rect(fenceX, fenceTop, 2, fenceBottom - fenceTop + 2, '#765d42')
-  rect(fenceX - 1, fenceTop, 1, fenceBottom - fenceTop, '#d2b58c')
-
-  const post = (x: number, y: number) => {
-    rect(x, y + 3, 4, 3, 'rgba(40,54,43,.22)')
-    rect(x - 1, y, 3, 4, '#775d41')
-    rect(x - 1, y, 1, 3, '#b7976e')
-    rect(x - 2, y - 2, 5, 3, '#bfa17b')
-    rect(x - 2, y - 2, 4, 1, '#e6cdab')
-    rect(x - 1, y - 1, 2, 1, '#d3b68e')
-  }
-  const horizontalBays = Math.max(2, Math.round(fenceX / 17))
-  for (let i = 0; i <= horizontalBays; i++) {
-    const x = Math.round(i / horizontalBays * fenceX)
-    post(x, fenceTop); post(x, fenceBottom)
-  }
-  const verticalBays = Math.max(2, Math.round((fenceBottom - fenceTop) / 17))
-  for (let i = 1; i < verticalBays; i++) post(fenceX, fenceTop + i / verticalBays * (fenceBottom - fenceTop))
   return { width, height, dpr, canvas }
 }
 

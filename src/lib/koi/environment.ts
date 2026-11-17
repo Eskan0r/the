@@ -135,22 +135,6 @@ export function createPond(cols: number, rows: number) {
     }
   }
 
-  function grass(x: number, y: number, flip: number) {
-    for (let i = 0; i < 17; i++) {
-      const height = (4 + random() * 10) * unit
-      const lean = (random() - 0.3) * height * flip
-      s.strokeStyle = ['#4d8055', '#7b9b5b', '#a2b371', '#628e57'][i % 4]
-      s.lineWidth = Math.max(0.6, unit * 0.6)
-      s.beginPath()
-      s.moveTo(x + (random() - 0.5) * 4 * unit, y)
-      s.quadraticCurveTo(x + lean * 0.18, y - height * 0.7, x + lean, y - height)
-      s.stroke()
-    }
-  }
-  grass(cols * 0.02, rows * 0.23, 1)
-  grass(cols * 0.035, rows * 0.96, 1)
-  grass(cols * 0.97, rows * 1.015, -1)
-
   function lily(x: number, y: number, radius: number, angle: number) {
     s.save()
     s.translate(x, y)

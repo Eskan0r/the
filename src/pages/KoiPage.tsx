@@ -12,7 +12,7 @@ export default function KoiPage() {
   }, [])
 
   return (
-    <main className="koi-pond" aria-label="An animated pixel koi garden with an empty fenced wooden pier. Click or tap the water to feed the koi. Drag your finger through the water to make wakes.">
+    <main className="koi-pond" aria-label="An animated pixel koi garden with an empty wooden pier. Click or tap the water to feed the koi. Drag your finger through the water to make wakes.">
       <canvas ref={water} aria-hidden="true" />
       <canvas ref={foreground} className="koi-foreground" aria-hidden="true" />
       <div className="koi-vignette" aria-hidden="true" />
