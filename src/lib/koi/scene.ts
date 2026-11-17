@@ -6,6 +6,7 @@ import { pondBoundary } from './boundary'
 import { createCursorCarry, advanceCursor, releaseCursor, movePondPointer } from './cursor'
 import { WaterSurface } from './water'
 import { drawDock } from './dock'
+import { PondSunlight } from './sunlight'
 // Koi scene adapted from Pawan-webdeveloper/Ascii-Animals-extension (MIT).
 // Upstream: https://github.com/Pawan-webdeveloper/Ascii-Animals-extension
 // See LICENSE in this directory. Only the koi sampler and canvas engine
@@ -113,11 +114,11 @@ const ANIMALS = [
     spread: 0.9,
     trail: { chars: "~-~=", color: [150, 175, 210], life: 1.8, at: [[-10, 0]] },
     variants: [
-      { base: [236, 232, 226], patch: [214, 48, 36], thr: 0.5 },
-      { base: [236, 232, 226], patch: [205, 45, 35], thr: 0.55, dark: [30, 30, 34] },
-      { base: [244, 196, 44], patch: [250, 150, 30], thr: 0.72 },
-      { base: [240, 118, 38], patch: [255, 172, 72], thr: 0.68 },
-      { base: [214, 220, 228], patch: [176, 186, 202], thr: 0.6 },
+      { base: [255, 251, 231], patch: [235, 65, 42], thr: 0.5 },
+      { base: [253, 248, 229], patch: [221, 53, 37], thr: 0.55, dark: [35, 49, 51] },
+      { base: [255, 219, 67], patch: [245, 194, 42], thr: 0.72 },
+      { base: [248, 133, 54], patch: [255, 194, 103], thr: 0.68 },
+      { base: [246, 251, 243], patch: [207, 225, 224], thr: 0.6 },
     ],
     prep(e) {
       e.tail ||= createTail(e.phase, e.heading);
@@ -155,13 +156,14 @@ const ANIMALS = [
 const ANIMAL_BY_ID = Object.fromEntries(ANIMALS.map((a) => [a.id, a]));
 
 const settings = {
-  density: 1, speed: 1, size: 1, depth: 0.6, sway: 0.5,
-  cell: 9, trails: true, bokeh: false, reach: 220, scare: 1,
+  density: 1, speed: 1, size: 1.9, depth: 0.6, sway: 0.5,
+  cell: 4, trails: true, bokeh: false, reach: 220, scare: 1,
   tune: { koi: { direction: 0, spread: 0.9 } },
 };
 const DEFAULTS = { animal: "koi" };
-const GRID_LINE = "rgba(5, 15, 17, 0.48)";
+const GRID_LINE = "rgba(31, 83, 76, 0.025)";
 let pond;
+let sunlight;
 let waterSurface;
 let submergedPixels;
 
@@ -222,6 +224,7 @@ function resize() {
 
   R.font = `600 ${Math.round(R.cell * 1.02)}px "Geist Mono", ui-monospace, monospace`;
   pond = createPond(R.cols, R.rows);
+  sunlight = new PondSunlight(R.cols, R.rows, R.cell / R.dpr);
   waterSurface = new WaterSurface(window.innerWidth, window.innerHeight);
   submergedPixels = new Uint32Array(n);
   drawOverlay();
@@ -238,7 +241,7 @@ function drawOverlay() {
   for (let j = 0; j <= R.rows; j++) g.fillRect(0, j * R.cell, R.W, R.line);
   const rg = g.createRadialGradient(R.W / 2, R.H * 0.45, Math.min(R.W, R.H) * 0.2, R.W / 2, R.H * 0.5, Math.hypot(R.W, R.H) * 0.62);
   rg.addColorStop(0, "rgba(0,0,0,0)");
-  rg.addColorStop(1, "rgba(0,0,0,0.55)");
+  rg.addColorStop(1, "rgba(13,65,72,0.12)");
   g.fillStyle = rg;
   g.fillRect(0, 0, R.W, R.H);
 }
@@ -273,7 +276,7 @@ const ripples = []; // tap feedback: { x, y, age, dur, maxR, chars, color }
 
 function scaleFor(e) {
   const far = 1 - settings.depth * 0.62;
-  return settings.size * (e.A.scale || 1) * lerp(far, 1.12, e.z) * (e.bokeh ? 1.7 : 1);
+  return settings.size * clamp(window.innerWidth / 1000, 0.6, 1) * (e.A.scale || 1) * lerp(far, 1.12, e.z) * (e.bokeh ? 1.7 : 1);
 }
 
 function makeEntity(A, opts = {}) {
@@ -285,7 +288,7 @@ function makeEntity(A, opts = {}) {
     y: opts.y ?? rand(0, R.H),
     z: opts.z ?? Math.pow(Math.random(), 0.85),
     seed: (seedCounter++ * 2654435761) >>> 16,
-    pal: pick(A.variants),
+    pal: A.variants[[0, 1, 2, 4, 0, 2, 1, 3, 4, 0, 2, 1][(seedCounter - 2) % 12]],
     phase: rand(0, TAU),
     rateMul: rand(0.85, 1.15),
     speedMul: rand(0.75, 1.25),
@@ -561,11 +564,12 @@ function step(dt) {
 
 const glyphs = [];
 
-function rasterize(e, order, buf, transparentBg) {
+function rasterize(e, order, buf, transparentBg, shadow = false) {
   const A = e.A;
   const k = scaleFor(e);
-  const cx = e.x / R.cell;
-  const cy = e.y / R.cell;
+  const offset = shadow ? lerp(7, 3, e.z) : 0;
+  const cx = e.x / R.cell + offset;
+  const cy = e.y / R.cell + offset * 1.25;
   const rad = (A.radius + 2) * k; // room for the rotated caudal fin during a turn
   const i0 = Math.max(0, Math.floor(cx - rad));
   const i1 = Math.min(R.cols - 1, Math.ceil(cx + rad));
@@ -576,7 +580,7 @@ function rasterize(e, order, buf, transparentBg) {
   const ang = e.heading + (A.facing || 0);
   const cs = Math.cos(ang) / k;
   const sn = Math.sin(ang) / k;
-  const bright = e.bokeh ? 1 : lerp(0.38, 1, e.z);
+  const bright = e.bokeh ? 1 : lerp(0.82, 1, e.z);
   const fade = e.fade;
   const tick = (simTime * 5) | 0;
   const cols = R.cols;
@@ -592,6 +596,14 @@ function rasterize(e, order, buf, transparentBg) {
       const idx = j * cols + i;
       const a = out.a * fade;
       if (a <= 0.01) continue;
+      if (shadow) {
+        const p = buf[idx], opacity = a * 0.22;
+        const r = lerp(p & 255, 24, opacity) | 0;
+        const g = lerp((p >>> 8) & 255, 75, opacity) | 0;
+        const b = lerp((p >>> 16) & 255, 78, opacity) | 0;
+        buf[idx] = (255 << 24) | (b << 16) | (g << 8) | r;
+        continue;
+      }
 
       if (out.ch) {
         if (transparentBg) continue;
@@ -601,7 +613,7 @@ function rasterize(e, order, buf, transparentBg) {
         continue;
       }
 
-      const jit = 0.86 + 0.28 * hash2(i, j, e.seed);
+      const jit = (0.96 + 0.08 * hash2(i, j, e.seed)) * (1.02 - (dx + dy) / rad * 0.06);
       let r = out.r * jit;
       let g = out.g * jit;
       let b = out.b * jit;
@@ -664,17 +676,10 @@ let trailChars = ".";
 function render(dt) {
   const buf = R.buf;
   buf.set(pond.pixels);
-  // Slow refracted light on the bottom, below fish and floating leaves.
-  for (let j = 0; j < R.rows; j++) for (let i = 0; i < R.cols; i++) {
-    const wave = Math.sin(i * 0.18 + Math.sin(j * 0.13 + simTime * 0.16) * 2.8 + simTime * 0.22)
-      + Math.sin(j * 0.21 + Math.sin(i * 0.11 - simTime * 0.12) * 2.1);
-    if (wave < 1.65) continue;
-    const idx = j * R.cols + i;
-    const p = buf[idx];
-    const light = Math.round((wave - 1.65) * 22);
-    buf[idx] = (255 << 24) | (Math.min(255, ((p >>> 16) & 255) + light) << 16)
-      | (Math.min(255, ((p >>> 8) & 255) + light) << 8) | Math.min(255, (p & 255) + light * 0.7);
-  }
+  // Cast shadows on the floor before lighting it. Fish remain above the ribbons.
+  for (const e of entities) rasterize(e, -1, buf, false, true);
+  sunlight.update(reducedMotion.matches ? 0 : simTime);
+  sunlight.apply(buf, pond.causticMask);
   R.occ.fill(-1);
   glyphs.length = 0;
 
@@ -683,6 +688,7 @@ function render(dt) {
     rasterize(sorted[n], n, buf, false);
     emitTrails(sorted[n], dt);
   }
+  sunlight.apply(buf, undefined, R.occ);
   waterSurface.refract(buf, submergedPixels, R.cols, R.rows, R.cell / R.dpr);
   drawFood(buf);
 

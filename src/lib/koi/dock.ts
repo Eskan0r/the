@@ -32,12 +32,12 @@ function paintDock(width: number, height: number, dpr: number) {
   rect(0, top - 1, right, bottom - top + 3, '#483e34')
   rect(0, bottom, right, 3, '#302f2b')
   const plank = Math.max(4, Math.round(7 * size))
-  const colors = ['#977b5b', '#9e8162', '#8a7054', '#a88a67', '#92795b']
+  const colors = ['#ac8d6c', '#b49575', '#a18464', '#bd9e7c', '#aa8e6c']
   for (let x = -2, i = 0; x < right; x += plank, i++) {
     const end = bottom - (i % 3 === 1 ? 1 : 0)
     rect(x, top + (i % 4 === 2 ? 1 : 0), Math.min(plank - 1, right - x), end - top, colors[i % colors.length])
-    rect(x + 1, top + 2, 1, end - top - 4, '#b29470')
-    rect(x + plank - 2, top + 4, 1, end - top - 7, '#796148')
+    rect(x + 1, top + 2, 1, end - top - 4, '#ccb08b')
+    rect(x + plank - 2, top + 4, 1, end - top - 7, '#8d7257')
     for (let j = 0; j < 5; j++) {
       const y = top + 5 + ((i * 19 + j * 13) % Math.max(1, bottom - top - 12))
       rect(x + 2 + (j % 2), y, 1, 2 + ((i + j) % 4), '#7d654d')
@@ -71,7 +71,7 @@ function paintDock(width: number, height: number, dpr: number) {
   ellipse(fx - 7 * size, fy, 10 * size, 10 * size, '#796b47')
   ellipse(fx - 8 * size, fy - 1 * size, 10 * size, 10 * size, '#b7a16a')
   ellipse(fx - 9 * size, fy - 3 * size, 8 * size, 7 * size, '#cbb67b')
-  ellipse(fx - 10 * size, fy - 4 * size, 5 * size, 5 * size, '#d4c08a')
+  ellipse(fx - 10 * size, fy - 4 * size, 5 * size, 5 * size, '#e1ce97')
   rect(fx - 13 * size, fy + 6 * size, 7 * size, 1, '#a08a58')
   rect(fx - 5 * size, fy - 6 * size, 1, 10 * size, '#bba36b')
   const tipX = Math.round(mobile ? w * 0.48 : Math.min(w * 0.48, right + w * 0.23))

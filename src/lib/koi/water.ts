@@ -270,6 +270,9 @@ export class WaterSurface {
   // Floating food and leaves are drawn afterwards by the scene.
   refract(pixels: Uint32Array, source: Uint32Array, cols: number, rows: number, cell: number) {
     source.set(pixels)
+    // An exactly flat field is the identity map and has no surface highlight.
+    // Avoid resampling every sunlit garden pixel until an interaction adds waves.
+    if (this.heights.every(height => height === 0)) return
     const epsilonX = this.dx * WATER.pixelsPerMetre, epsilonY = this.dy * WATER.pixelsPerMetre
     const block = 2
     for (let y = 0; y < rows; y += block) for (let x = 0; x < cols; x += block) {

@@ -2,7 +2,7 @@
   position: fixed;
   inset: 0;
   overflow: hidden;
-  background: #183331;
+  background: #79b6a9;
   isolation: isolate;
   touch-action: manipulation;
   cursor: url('/cursors/windows-arrow.png') 0 0, default;
@@ -22,6 +22,5 @@
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(180deg, #071f2138, transparent 23%, transparent 48%, #071c2428 76%, #071c2447),
-    radial-gradient(ellipse at 50% 75%, #0b26292e, transparent 55%);
+    radial-gradient(ellipse at 15% 5%, #fff1b512, transparent 65%);
 }
