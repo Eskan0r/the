@@ -5,6 +5,7 @@ import { beginBite, advanceBite } from './bite'
 import { pondBoundary } from './boundary'
 import { createCursorCarry, advanceCursor, releaseCursor, movePondPointer } from './cursor'
 import { WaterSurface } from './water'
+import { drawDock } from './dock'
 // Koi scene adapted from Pawan-webdeveloper/Ascii-Animals-extension (MIT).
 // Upstream: https://github.com/Pawan-webdeveloper/Ascii-Animals-extension
 // See LICENSE in this directory. Only the koi sampler and canvas engine
@@ -734,6 +735,7 @@ function render(dt) {
     bctx.imageSmoothingEnabled = false;
     bctx.drawImage(R.blo, 0, 0, R.cols * R.cell, R.rows * R.cell);
   }
+  drawDock(bctx, R.W, R.H, simTime, R.dpr);
   drawCarriedCursor();
 }
 
