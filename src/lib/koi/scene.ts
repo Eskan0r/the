@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { createTail, updateTail, spinePoint, unbendPoint } from './tail'
 import { createPond } from './environment'
-import { beginBite, advanceBite } from './bite'
+import { beginBite, advanceBite, prepareBite } from './bite'
 import { pondBoundary } from './boundary'
 import { createCursorCarry, advanceCursor, releaseCursor, movePondPointer } from './cursor'
 import { WaterSurface } from './water'
@@ -446,7 +446,7 @@ function step(dt) {
     let crowd = 1;
 
     // koi: find the nearest pellet in range and go for it
-    if (A.feeds && foods.length && !e.bokeh && !e.leaving && t >= (e.feedingCoastUntil || 0)) {
+    if (A.feeds && foods.length && !e.bokeh && !e.leaving) {
       const hx = e.x + Math.cos(e.heading) * 6.5 * k * R.cell;
       const hy = e.y + Math.sin(e.heading) * 6.5 * k * R.cell;
       // close koi rush in; koi further out notice more slowly and drift over
@@ -462,13 +462,15 @@ function step(dt) {
         }
       }
       e.meal = best;
-      // A pellet under the body needs a new approach, not a tight orbit.
-      if (best && Math.hypot(best.x - e.x, best.y - e.y) < 7 * k * R.cell
-        && (best.x - hx) * Math.cos(e.heading) + (best.y - hy) * Math.sin(e.heading) < 0) {
-        e.feedingCoastUntil = t + Math.max(1, 12 * k * R.cell / Math.max(1, baseSpeed));
-        e.meal = best = null;
-      }
       if (best) {
+        if (prepareBite(e, best, k * R.cell, dt * motion)) {
+          e.behavior.speed = 0;
+          e.behavior.turnRate = 0;
+          beginBite(e, best, k * R.cell, t);
+          updateTail(e.tail, dt * motion, e.heading, 0, settings.sway, e.rateMul);
+          e.phase = e.tail.phase;
+          continue;
+        }
         const close = clamp(1 - bestD / reachPx, 0, 1);
         const far = bestD > reachPx;
         const fx = (best.x - hx) / (bestD || 1);
@@ -480,13 +482,6 @@ function step(dt) {
         turnMul = far ? 2.2 : 2.6 + 3.5 * close;
         crowd = 0.7;
         if (bestD < 3.5 * k * R.cell) boost *= 0.45;
-        if (beginBite(e, best, k * R.cell, t)) {
-          e.behavior.speed = 0;
-          e.behavior.turnRate = 0;
-          updateTail(e.tail, dt * motion, e.heading, 0, settings.sway, e.rateMul);
-          e.phase = e.tail.phase;
-          continue;
-        }
       }
     }
 

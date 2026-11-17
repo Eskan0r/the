@@ -29,7 +29,9 @@ edge accumulation, and visible overlap between depth layers.
 - New fish choose spacious positions in the central area. Food and cursor
   curiosity override ordinary roaming, while retaining some separation.
 - A fish keeps its pellet target, and other fish choose unclaimed pellets.
-  Pellets underneath a fish trigger a pass and another approach. The existing
+  Fish inside feeding range hold their exact position and turn toward their
+  pellet. A bite requires facing within six degrees, and food already within
+  head reach can be taken without backing away. The existing
   pause, extended lunge, recovery, and larger idle-cursor detection radius remain.
   The short bite animation takes priority over normal separation, so fish can
   briefly cross while feeding; this is a preference for space, not rigid collision
