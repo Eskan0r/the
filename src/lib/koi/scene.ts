@@ -8,12 +8,13 @@ import { WaterSurface } from './water'
 import { drawDock } from './dock'
 import { PondSunlight } from './sunlight'
 import { createKoiBehavior, chooseKoiSpawn, planKoiBehavior, advanceKoiCruise } from './behavior'
+import type { PondAssets } from './assets'
 // Koi scene adapted from Pawan-webdeveloper/Ascii-Animals-extension (MIT).
 // Upstream: https://github.com/Pawan-webdeveloper/Ascii-Animals-extension
 // See LICENSE in this directory. Only the koi sampler and canvas engine
 // are retained; extension UI, storage, and browser APIs are not used.
 
-export function startKoi(world: HTMLCanvasElement, bokehCanvas: HTMLCanvasElement): () => void {
+export function startKoi(world: HTMLCanvasElement, bokehCanvas: HTMLCanvasElement, assets: PondAssets): () => void {
 const ctx = world.getContext("2d", { alpha: false });
 const bctx = bokehCanvas.getContext("2d");
 if (!ctx || !bctx) return () => {};
@@ -224,7 +225,7 @@ function resize() {
   R.tCol = new Uint8Array(n * 3);
 
   R.font = `600 ${Math.round(R.cell * 1.02)}px "Geist Mono", ui-monospace, monospace`;
-  pond = createPond(R.cols, R.rows);
+  pond = createPond(R.cols, R.rows, assets);
   sunlight = new PondSunlight(R.cols, R.rows, R.cell / R.dpr);
   waterSurface = new WaterSurface(window.innerWidth, window.innerHeight);
   submergedPixels = new Uint32Array(n);
@@ -723,7 +724,7 @@ function render(dt) {
     bctx.imageSmoothingEnabled = false;
     bctx.drawImage(R.blo, 0, 0, R.cols * R.cell, R.rows * R.cell);
   }
-  drawDock(bctx, R.W, R.H, R.dpr);
+  drawDock(bctx, R.W, R.H, R.dpr, assets);
   drawCarriedCursor();
 }
 

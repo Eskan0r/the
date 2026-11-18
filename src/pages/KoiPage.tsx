@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { startKoi } from '../lib/koi/scene'
+import { loadPondAssets } from '../lib/koi/assets'
 import './koi.css'
 
 export default function KoiPage() {
@@ -7,8 +8,13 @@ export default function KoiPage() {
   const foreground = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
-    if (!water.current || !foreground.current) return
-    return startKoi(water.current, foreground.current)
+    let cancelled = false
+    let stop: (() => void) | undefined
+    void loadPondAssets().then(assets => {
+      if (cancelled || !water.current || !foreground.current) return
+      stop = startKoi(water.current, foreground.current, assets)
+    }).catch(error => console.error('Unable to load pond artwork', error))
+    return () => { cancelled = true; stop?.() }
   }, [])
 
   return (

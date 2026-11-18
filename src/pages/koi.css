@@ -3,6 +3,8 @@
   inset: 0;
   overflow: hidden;
   background: #79b6a9;
+  background-image: url('/pond/scenery/background.png');
+  background-size: cover;
   isolation: isolate;
   touch-action: none;
   -webkit-touch-callout: none;
