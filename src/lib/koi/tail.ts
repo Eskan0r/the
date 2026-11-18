@@ -4,46 +4,76 @@
 const ROOT = 3.6
 const END = -12.6
 const SEGMENTS = 32
+const HISTORY_SIZE = SEGMENTS + 2
 const STEP = (ROOT - END) / SEGMENTS
 const TAU = Math.PI * 2
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 export type Tail = {
-  phase: number; amplitude: number; frequency: number; bend: number
-  heading: number; speed: number; x: Float64Array; y: Float64Array
+  phase: number; amplitude: number; frequency: number
+  heading: number; speed: number; tightCurve: boolean; x: Float64Array; y: Float64Array
+  pathHeadings: Float64Array; pathIndex: number; pathRemainder: number
 }
 
 export function createTail(phase: number, heading: number): Tail {
-  const state: Tail = { phase, amplitude: 0.15, frequency: 0.12, bend: 0,
-    heading, speed: 0, x: new Float64Array(SEGMENTS + 1), y: new Float64Array(SEGMENTS + 1) }
+  const state: Tail = { phase, amplitude: 0.15, frequency: 0.12,
+    heading, speed: 0, tightCurve: false, x: new Float64Array(SEGMENTS + 1), y: new Float64Array(SEGMENTS + 1),
+    pathHeadings: new Float64Array(HISTORY_SIZE).fill(heading), pathIndex: 0, pathRemainder: 0 }
   buildSpine(state)
   return state
 }
 
 // Amplitude grows toward the rear while phase is delayed toward the tail.
-// A positive heading change curves the trailing body into the previous path.
-export function lateralOffset(progress: number, phase: number, amplitude: number, bend: number) {
+export function lateralOffset(progress: number, phase: number, amplitude: number) {
   const s = clamp(progress, 0, 1)
   const envelope = s * s
-  return amplitude * envelope * Math.sin(phase - s * 3.8) + bend * 5 * envelope
+  return amplitude * envelope * Math.sin(phase - s * 3.8)
 }
 
 export function buildSpine(tail: Tail) {
   tail.x[0] = ROOT; tail.y[0] = 0
+  tail.tightCurve = false
+  let previousOffset = 0
+  let turnAngle = 0
+  let pathHeading = tail.heading
+  let previousPathDistance = 0
+  let offsetFromNewest = 0
   for (let i = 1; i <= SEGMENTS; i++) {
-    const desired = lateralOffset(i / SEGMENTS, tail.phase, tail.amplitude, tail.bend)
-    const dy = clamp(desired - tail.y[i - 1], -STEP * 0.78, STEP * 0.78)
-    // Every segment keeps its length, including at the tail-fin attachment.
-    tail.x[i] = tail.x[i - 1] - Math.sqrt(STEP * STEP - dy * dy)
-    tail.y[i] = tail.y[i - 1] + dy
+    const distance = (i - 0.5) * STEP
+    // Each segment uses the heading recorded when the head crossed this part of the path.
+    while (distance > tail.pathRemainder + offsetFromNewest * STEP) {
+      previousPathDistance = tail.pathRemainder + offsetFromNewest * STEP
+      pathHeading = tail.pathHeadings[(tail.pathIndex - offsetFromNewest + HISTORY_SIZE) % HISTORY_SIZE]
+      offsetFromNewest++
+    }
+    const nextDistance = tail.pathRemainder + offsetFromNewest * STEP
+    const nextHeading = tail.pathHeadings[(tail.pathIndex - offsetFromNewest + HISTORY_SIZE) % HISTORY_SIZE]
+    const heading = pathHeading + (nextHeading - pathHeading) * (distance - previousPathDistance) / (nextDistance - previousPathDistance)
+    const wantedAngle = clamp(tail.heading - heading, -1.85, 1.85)
+    turnAngle += clamp(wantedAngle - turnAngle, -0.12, 0.12)
+    const offset = lateralOffset(i / SEGMENTS, tail.phase, tail.amplitude)
+    const strokeAngle = Math.asin(clamp((offset - previousOffset) / STEP, -0.78, 0.78))
+    const angle = turnAngle + strokeAngle * (1 - Math.min(0.85, Math.abs(turnAngle)))
+    tail.tightCurve ||= Math.abs(angle) > 0.8
+    tail.x[i] = tail.x[i - 1] - STEP * Math.cos(angle)
+    tail.y[i] = tail.y[i - 1] + STEP * Math.sin(angle)
+    previousOffset = offset
   }
 }
 
-export function updateTail(tail: Tail, dt: number, heading: number, speed: number, sway: number, individualRate = 1) {
+export function updateTail(tail: Tail, dt: number, heading: number, speed: number, sway: number, individualRate = 1, effort = 1) {
   if (dt <= 0) return
-  const turn = Math.atan2(Math.sin(heading - tail.heading), Math.cos(heading - tail.heading)) / dt
-  tail.heading = heading
+  const turn = Math.atan2(Math.sin(heading - tail.heading), Math.cos(heading - tail.heading))
+  const distance = Math.max(0, speed) * dt
+  const samples = Math.floor((tail.pathRemainder + distance) / STEP)
+  for (let i = Math.max(1, samples - HISTORY_SIZE + 1); i <= samples; i++) {
+    const fraction = (i * STEP - tail.pathRemainder) / distance
+    tail.pathHeadings[(tail.pathIndex + i) % HISTORY_SIZE] = tail.heading + turn * fraction
+  }
+  tail.pathIndex = (tail.pathIndex + samples) % HISTORY_SIZE
+  tail.pathRemainder += distance - samples * STEP
+  tail.heading += turn
   const blend = 1 - Math.exp(-dt / 0.18)
-  tail.speed += (Math.max(0, speed) - tail.speed) * blend
+  tail.speed += (Math.max(0, speed) * effort - tail.speed) * blend
   // Speed is measured in sprite units per second, independent of orientation,
   // device pixel ratio, depth, or sprite size. Faster swimming primarily changes
   // beat frequency; amplitude increases modestly and stays bounded.
@@ -51,8 +81,6 @@ export function updateTail(tail: Tail, dt: number, heading: number, speed: numbe
   tail.frequency += (targetFrequency - tail.frequency) * blend
   const targetAmplitude = (0.15 + 1.7 * tail.speed / (tail.speed + 3.5)) * (0.65 + sway * 0.6)
   tail.amplitude += (targetAmplitude - tail.amplitude) * blend
-  const targetBend = clamp(turn * 5 / (tail.speed + 3), -0.65, 0.65)
-  tail.bend += (targetBend - tail.bend) * (1 - Math.exp(-dt / 0.24))
   tail.phase = (tail.phase + TAU * tail.frequency * dt) % TAU
   buildSpine(tail)
 }
@@ -72,9 +100,14 @@ export type MaterialPoint = { u: number; v: number }
 export function unbendPoint(tail: Tail, u: number, v: number, result: MaterialPoint) {
   if (u >= ROOT) { result.u = u; result.v = v; return }
   let lo = 0, hi = SEGMENTS
-  while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (tail.x[mid] > u) lo = mid; else hi = mid }
+  // Tight turns can bring the tail back alongside the body.
+  if (!tail.tightCurve) {
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (tail.x[mid] > u) lo = mid; else hi = mid }
+    hi = Math.min(SEGMENTS, lo + 3)
+    lo = Math.max(0, lo - 2)
+  }
   let best = Infinity, bestIndex = lo, bestT = 0, bestV = 0
-  for (let i = Math.max(0, lo - 2); i <= Math.min(SEGMENTS - 1, lo + 2); i++) {
+  for (let i = lo; i < hi; i++) {
     const dx = tail.x[i + 1] - tail.x[i], dy = tail.y[i + 1] - tail.y[i]
     const t = clamp(((u - tail.x[i]) * dx + (v - tail.y[i]) * dy) / (STEP * STEP),
       i === 0 ? -2 : 0, i === SEGMENTS - 1 ? 4 : 1)

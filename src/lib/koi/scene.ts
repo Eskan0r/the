@@ -532,7 +532,7 @@ function step(dt) {
     }
     const v = advanceKoiCruise(e, dx, dy, targetSpeed, baseSpeed, dt * motion, Math.min(2.2, turnMul));
     // Propulsive tail beats soften during a glide while forward inertia remains.
-    updateTail(e.tail, dt * motion, e.heading, v / (R.cell * k) * (plan.stroke || boost > 1.5 ? 1 : 0.28), settings.sway, e.rateMul);
+    updateTail(e.tail, dt * motion, e.heading, v / (R.cell * k), settings.sway, e.rateMul, plan.stroke || boost > 1.5 ? 1 : 0.28);
     e.phase = e.tail.phase;
 
     // No wrapping: a fish that drifts out turns back through the same edge.
