@@ -1,5 +1,4 @@
 .koi-intro-scenery,
-.koi-intro-backdrop,
 .koi-bubbles {
   position: absolute;
   inset: 0;
@@ -7,32 +6,53 @@
   pointer-events: none;
 }
 
-.koi-intro-backdrop {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  image-rendering: pixelated;
-  animation: koi-backdrop-appear 350ms ease-out both;
-}
-
-.koi-grasses {
+.koi-habitat {
   position: absolute;
-  bottom: -3px;
-  width: clamp(54px, 9vmin, 100px);
+  bottom: -4px;
+  width: clamp(110px, 20vmin, 205px);
   overflow: visible;
-  fill: #487b64;
-  opacity: 0.78;
+  opacity: 0.94;
 }
+.koi-habitat.left { left: 1%; }
+.koi-habitat.right { right: 2%; width: clamp(93px, 16vmin, 165px); opacity: 0.86; }
 
-.koi-grasses.left { left: 3%; }
-.koi-grasses.right { right: 4%; width: clamp(44px, 7vmin, 80px); transform: scaleX(-1); }
-.koi-grass-far, .koi-grass-near {
+.koi-kelp-stipe, .koi-kelp-blade {
   transform-box: fill-box;
   transform-origin: 50% 100%;
-  animation: koi-grass-sway 6s ease-in-out infinite alternate;
+  animation: koi-kelp-root 4.8s ease-in-out infinite alternate;
+  animation-delay: var(--sway-delay);
 }
-.koi-grass-far { fill: #63977c; animation-duration: 8s; animation-delay: -5s; }
-.koi-grasses.right .koi-grass-near { animation-delay: -4s; }
+.koi-kelp-blade {
+  animation-name: koi-kelp-tip;
+  animation-duration: 3.8s;
+  animation-delay: calc(var(--sway-delay) - .85s);
+}
+@keyframes koi-kelp-root { from { transform: rotate(-6deg); } to { transform: rotate(7deg); } }
+@keyframes koi-kelp-tip { from { transform: rotate(-12deg); } to { transform: rotate(14deg); } }
+
+.koi-minnow {
+  position: absolute;
+  width: clamp(24px, 3.2vmin, 36px);
+  overflow: visible;
+  animation: koi-minnow-pass 12s linear infinite;
+}
+.minnow-1 { left: 13%; top: 25%; --swim: 13vw; animation-delay: -4s; }
+.minnow-2 { left: 9%; top: 29%; --swim: 12vw; width: clamp(20px, 2.7vmin, 29px); animation-delay: -6.2s; }
+.minnow-3 { right: 8%; top: 68%; --swim: -13vw; animation-duration: 15s; animation-delay: -5s; }
+.koi-minnow-tail {
+  transform-box: fill-box;
+  transform-origin: 100% 50%;
+  animation: koi-minnow-beat .38s ease-in-out infinite alternate;
+}
+.minnow-2 .koi-minnow-tail { animation-delay: -.22s; }
+.minnow-3 .koi-minnow-tail { animation-duration: .48s; }
+@keyframes koi-minnow-pass {
+  0% { transform: translate(0, 2px); opacity: 0; }
+  15%, 78% { opacity: .72; }
+  48% { transform: translate(calc(var(--swim) * .48), -5px); }
+  100% { transform: translate(var(--swim), 2px); opacity: 0; }
+}
+@keyframes koi-minnow-beat { from { transform: scaleX(.72) skewY(-8deg); } to { transform: scaleX(1.06) skewY(9deg); } }
 
 .koi-bubbles i {
   --drift: 10px;
@@ -53,8 +73,6 @@
 .koi-bubbles i:nth-child(5) { left: 88%; width: 8px; --drift: -15px; animation-delay: -6.8s; }
 .koi-bubbles i:nth-child(6) { left: 92%; width: 4px; animation-delay: -1.2s; }
 
-@keyframes koi-backdrop-appear { from { opacity: 0; } to { opacity: 1; } }
-@keyframes koi-grass-sway { from { transform: skewX(-4deg); } to { transform: skewX(5deg); } }
 @keyframes koi-bubble-rise {
   0% { transform: translate(0, 0) scale(0.7); opacity: 0; }
   12% { opacity: 0.8; }
@@ -65,5 +83,5 @@
 
 #koi-intro[data-paused] .koi-intro-scenery * { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) {
-  .koi-intro-backdrop { animation: none; }
+  .koi-intro-scenery * { animation-play-state: paused; }
 }

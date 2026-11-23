@@ -4,12 +4,13 @@
 built-in image generation tool and compressed losslessly to 928,920 bytes. The
 image is 1672 x 941 pixels. Replacing it does not require rebuilding the fish.
 
-The browser requests it at low priority after the first fish paint. Loading or
-decoding this PNG never gates the fish, pond readiness, or reveal. The water-color
-fallback remains available when the image is slow or missing.
+On the homepage, the initial HTML requests the PNG at low priority with
+asynchronous decoding. Inline CSS shows three pulsing loading bubbles over a
+water-color gradient while the image and fish module load independently.
 
-Bubbles and grasses are animated separately in
-`src/lib/koi/intro-scenery.ts` and its CSS. Fish and gaze animation live in
+After the first fish paint, `src/lib/koi/intro-scenery.ts` and its CSS add
+ambient bubbles, swaying kelp, branching coral, and distant fish. Hero fish
+and gaze animation live in
 `src/lib/koi/intro.ts` and `src/lib/koi/side-view.ts`.
 
 ## Final image-generation prompt

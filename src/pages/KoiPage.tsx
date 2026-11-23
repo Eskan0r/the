@@ -12,10 +12,9 @@ export default function KoiPage() {
   useEffect(() => {
     let cancelled = false
     let stop: (() => void) | undefined
-    void loadAtlas()
-    void loadPondAssets().then(assets => {
+    void Promise.all([loadPondAssets(), loadAtlas()]).then(([assets, atlas]) => {
       if (cancelled || !water.current || !foreground.current) return
-      stop = startKoi(water.current, foreground.current, assets, koiIntro)
+      stop = startKoi(water.current, foreground.current, assets, atlas, koiIntro)
     }).catch(error => { if (!cancelled) showLoadError(error) })
     return () => {
       cancelled = true

@@ -4,6 +4,7 @@ import { updateTail } from './tail'
 
 export type KoiIntro = {
   fish: KoiFish; slot: number; host: HTMLElement
+  minimumVisible: Promise<void>
   finish: (onReady: (skipMotion: boolean) => void) => void; stop: () => void
 }
 export let koiIntro: KoiIntro | undefined
@@ -11,6 +12,7 @@ export let koiIntro: KoiIntro | undefined
 export function startKoiIntro() {
   if (koiIntro) return
   const host = document.getElementById('koi-intro')
+  host?.dispatchEvent(new Event('koi-start'))
   const canvas = host?.querySelector('canvas')
   const ctx = canvas?.getContext('2d')
   if (!host || !canvas || !ctx) {
@@ -20,7 +22,7 @@ export function startKoiIntro() {
 
   const slot = Math.floor(Math.random() * koiPopulation(innerWidth, innerHeight))
   const fish = createKoiFish(slot, { x: 0, y: 0 })
-  const speed = 4.4 * fish.speedMul
+  const speed = 6.8 * fish.speedMul
   const pixels = ctx.createImageData(canvas.width, canvas.height)
   const framePixels = new Uint32Array(pixels.data.buffer)
   const drawProfile = createKoiSideView(fish, pixels.width, pixels.height)
@@ -36,6 +38,7 @@ export function startKoiIntro() {
 
   // The camera centers the fish. Its position stays in the pond's backing pixels.
   function resize() {
+    if (readyAt !== undefined && !release) return
     const dpr = Math.min(devicePixelRatio || 1, 2)
     fish.x = Math.round(innerWidth * dpr) / 2
     fish.y = Math.round(innerHeight * dpr) / 2
@@ -100,7 +103,6 @@ export function startKoiIntro() {
     koiIntro = undefined
   }
 
-  koiIntro = { fish, slot, host, finish, stop }
   window.addEventListener('resize', resize, { signal })
   window.addEventListener('pagehide', event => { if (!event.persisted) stop() }, { signal })
   window.addEventListener('popstate', () => { if (location.pathname !== '/') stop() }, { signal })
@@ -109,15 +111,42 @@ export function startKoiIntro() {
   resize()
   updateTail(fish.tail, 0.5, fish.heading, speed, 0.5, fish.rateMul)
   draw()
+  koiIntro = { fish, slot, host, finish, stop, minimumVisible: waitForVisibleFish(signal) }
   syncMotion()
   // Give the first fish frame a paint before requesting optional scenery.
   sceneryFrame = requestAnimationFrame(() => {
     sceneryFrame = requestAnimationFrame(() => {
       if (readyAt !== undefined) return
       void import('./intro-scenery').then(({ mountIntroScenery }) => {
-        if (!signal.aborted && readyAt === undefined) mountIntroScenery(host, signal)
+        if (!signal.aborted && readyAt === undefined) mountIntroScenery(host)
       }).catch(() => { /* The water gradient remains visible if scenery is unavailable. */ })
     })
+  })
+}
+
+// Start at the first draw. Hidden time never consumes the visible swim period.
+export function waitForVisibleFish(signal: AbortSignal): Promise<void> {
+  return new Promise(resolve => {
+    let remaining = 2000
+    let since: number | undefined
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const done = () => {
+      clearTimeout(timer)
+      document.removeEventListener('visibilitychange', sync)
+      signal.removeEventListener('abort', done)
+      resolve()
+    }
+    function sync() {
+      clearTimeout(timer)
+      const now = performance.now()
+      if (since !== undefined) remaining -= Math.max(0, now - since)
+      since = document.hidden ? undefined : now
+      if (remaining <= 0) done()
+      else if (!document.hidden) timer = setTimeout(sync, Math.ceil(remaining))
+    }
+    document.addEventListener('visibilitychange', sync)
+    signal.addEventListener('abort', done, { once: true })
+    sync()
   })
 }
 

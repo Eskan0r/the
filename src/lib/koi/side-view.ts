@@ -111,7 +111,7 @@ export function createKoiSideView(fish: KoiFish, width: number, height: number) 
     if (gaze !== lastGaze) setGaze(gaze)
     const tail = fish.tail
     const last = tail.x.length - 1
-    const scull = Math.sin(tail.phase - 0.6) * 0.19
+    const scull = Math.sin(tail.phase - 0.6) * 0.46
     for (let y = 0; y < height; y++) finShift[y] = Math.round((y - height / 2 - scale) * scull)
     for (let x = 0; x < width; x++) {
       const u = (x + 0.5 - width / 2) / scale - 2
@@ -120,12 +120,16 @@ export function createKoiSideView(fish: KoiFish, width: number, height: number) 
       const depth = (tail.y[i] + (tail.y[i + 1] - tail.y[i]) * f) * facing
       const along = tail.x[i] + (tail.x[i + 1] - tail.x[i]) * f
       const foreshortening = along - (3.6 - at * 16.2 / last)
-      // The lateral tail beat travels mostly toward and away from this camera.
-      const sourceX = x - Math.round((foreshortening + depth * 0.42) * scale)
-      const lift = Math.round(depth * 0.29 * scale)
+      const rear = at / last
+      // Pull the fan toward the peduncle as it turns edge-on. The traveling
+      // bend is strongest behind the belly and leaves the eye and gill stable.
+      const turn = Math.min(1, Math.abs(depth) / Math.max(tail.amplitude, 0.25))
+      const sourceX = x - Math.round((foreshortening + depth * 0.6 + rear * rear * turn * 0.85) * scale)
+      const lift = (depth * 0.96 + 0.28 * rear * Math.sin(tail.phase - 2.6 * rear)) * scale
+      const fan = 1 - 0.24 * rear * rear * turn
       const screenX = facing > 0 ? x : width - 1 - x
       for (let y = 0; y < height; y++) {
-        const sourceY = y - lift
+        const sourceY = Math.floor((y + 0.5 - height / 2 - lift) / fan + height / 2)
         const base = sourceX >= 0 && sourceX < width && sourceY >= 0 && sourceY < height
           ? body[sourceY * width + sourceX] : 0
         const finX = x - finShift[y]

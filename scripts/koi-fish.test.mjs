@@ -58,21 +58,29 @@ test('the side camera shows a stable head and a beating tail in both directions'
     draw(pixels)
     const first = pixels.slice()
     const facingRight = Math.cos(fish.heading) > 0
-    let tailMoved = false
-    for (let frame = 0; frame < 90; frame++) {
-      updateTail(fish.tail, 1 / 60, fish.heading, 5, 0.5, fish.rateMul)
+    const ranges = [[Infinity, -Infinity], [Infinity, -Infinity]]
+    for (let frame = 0; frame < 150; frame++) {
+      updateTail(fish.tail, frame ? 1 / 60 : 0.5, fish.heading, 6.8 * fish.speedMul, 0.5, fish.rateMul)
       draw(pixels)
+      const sums = [0, 0], counts = [0, 0]
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
           const p = y * width + x
           const localX = facingRight ? x : width - 1 - x
           if (localX > 74) assert.equal(pixels[p], first[p])
-          if (localX < 25 && pixels[p] !== first[p]) tailMoved = true
+          const section = localX >= 9 && localX < 17 ? 0 : localX >= 34 && localX < 42 ? 1 : -1
+          if (section >= 0 && pixels[p]) { sums[section] += y; counts[section]++ }
           if (x === 0 || y === 0 || x === width - 1 || y === height - 1) assert.equal(pixels[p], 0)
         }
       }
+      for (let i = 0; i < 2; i++) {
+        const center = sums[i] / counts[i]
+        ranges[i][0] = Math.min(ranges[i][0], center)
+        ranges[i][1] = Math.max(ranges[i][1], center)
+      }
     }
-    assert.ok(tailMoved)
+    assert.ok(ranges[0][1] - ranges[0][0] > 5, 'tail travels at least five sprite pixels')
+    assert.ok(ranges[1][1] - ranges[1][0] > 2, 'rear body visibly participates in the stroke')
   }
 })
 

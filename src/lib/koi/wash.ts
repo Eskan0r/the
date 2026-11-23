@@ -1,42 +1,148 @@
-// An opaque band of water hides the moving clip boundary. Its translucent
-// leading and trailing edges pass over the two views at their native sizes.
+type Direction = 'down' | 'up' | 'right' | 'left'
+const directions: readonly Direction[] = ['down', 'up', 'right', 'left']
+const cell = 4
+const duration = 960
+const teal = 0x00969661, deep = 0x00878451, jade = 0x00adbe80
+const glass = 0x00bfd1a0, mint = 0x00c6dfae, foam = 0x00d8f1dc
+
+// One asymmetric front with a breaking shoulder and a shallower trailing bay.
+// The clip and raster share the same cross-sections, including on resize.
+function waterline(s: number, height: number) {
+  const crest = Math.exp(-(((s - 0.36) / (s < 0.36 ? 0.31 : 0.16)) ** 2))
+  const bay = Math.exp(-(((s - 0.75) / 0.23) ** 2))
+  return Math.round(height * (0.49 + 0.27 * crest - 0.10 * bay) + 1.5 * Math.sin(s * 11))
+}
+
+function waveStrip(canvas: HTMLCanvasElement, span: number, shortSide: number) {
+  const width = Math.max(1, Math.ceil(span / cell))
+  const crestHeight = Math.max(31, Math.min(58, Math.round(shortSide / cell * 0.22) + 13))
+  const height = crestHeight + 21
+  canvas.width = width; canvas.height = height
+  canvas.style.width = width * cell + 'px'; canvas.style.height = height * cell + 'px'
+  const ctx = canvas.getContext('2d')!
+  const image = ctx.createImageData(width, height)
+  const pixels = new Uint32Array(image.data.buffer)
+  const knots = Array.from({ length: 29 }, (_, i) => 14 + waterline(i / 28, crestHeight))
+  const front = new Float32Array(width)
+  for (let x = 0; x < width; x++) {
+    const at = Math.min(28, (x + 0.5) * cell / span * 28), i = Math.min(27, Math.floor(at))
+    front[x] = knots[i] + (knots[i + 1] - knots[i]) * (at - i)
+  }
+
+  function paint(t: number) {
+    pixels.fill(0)
+    for (let x = 0; x < width; x++) {
+      const surge = Math.sin(x * 0.043 - t * 4.2)
+      const ripple = Math.sin(x * 0.116 + t * 5 + surge * 1.4)
+      const edge = Math.round(front[x] + surge * 0.85 + ripple * 0.42)
+      const froth = Math.sin(x * 0.059 - t * 6 + 1.4 * surge) + 0.58 * Math.sin(x * 0.21 - t * 8)
+      const wake = Math.sin(x * 0.029 + t * 3.6 + 1.7 * ripple)
+      const back = Math.min(edge - 1, 23 + Math.round(4 * surge + 4 * wake))
+      const curl = Math.round(8 + 2.4 * ripple + 2.8 * wake)
+      const leading = 10 + Math.round(2.6 * surge + 1.6 * ripple)
+      const shoulder = Math.round(1.7 * surge + 1.1 * ripple)
+      for (let d = -back; d <= leading; d++) {
+        let color: number, opacity: number
+        if (d < -3) {
+          const thickness = 1 + d / back
+          color = d < -curl ? teal : jade
+          opacity = Math.round(172 * thickness * (2 - thickness))
+          // Reflections fold back from the lip in short, uneven fans.
+          const fold = d + curl
+          if (fold >= 0 && fold < 2 + wake * 2 && froth > 0.06) {
+            color = fold === 0 && froth > 0.88 ? mint : glass
+            opacity = Math.round(142 + 40 * thickness)
+          }
+          if (wake > 0.55 && Math.abs(d + back * 0.72 + ripple * 2) < 0.92) {
+            color = glass; opacity = 104
+          }
+        } else if (d <= 2) {
+          // This opaque core covers the cutoff under the refracting lip.
+          color = d < shoulder ? (surge > 0.25 ? teal : deep) : jade
+          opacity = 255
+          if (froth > 0.12 && Math.abs(d - shoulder) < 0.9 + froth) color = mint
+          if (froth > 0.87 && d >= shoulder && d < shoulder + froth) color = foam
+        } else {
+          const thickness = (leading - d + 1) / (leading - 2)
+          color = ripple > 0.25 ? glass : jade
+          opacity = Math.round(165 * thickness * thickness)
+          if (ripple > 0.68 && froth > 0.2 && d === leading - 2) { color = mint; opacity = 100 }
+        }
+        const y = edge + d
+        if (y >= 0 && y < height) pixels[y * width + x] = (opacity << 24) | color
+      }
+      // Broken reflections arrive and dissolve independently of the crest.
+      if (froth > 0.7) {
+        const y = edge - back - 2 - Math.round(1.5 * ripple)
+        if (y >= 0) pixels[y * width + x] = (88 << 24) | mint
+      }
+      if (ripple > 0.90 && surge > 0) {
+        const y = edge + leading + 2
+        if (y < height) pixels[y * width + x] = (133 << 24) | foam
+      }
+    }
+    ctx.putImageData(image, 0, 0)
+  }
+  return { height: height * cell, knots, paint }
+}
+
 export function startWaterWash(host: HTMLElement, complete: () => void) {
-  const water = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-  water.setAttribute('viewBox', '0 0 1200 240')
-  water.setAttribute('preserveAspectRatio', 'none')
+  const direction = directions[Math.floor(Math.random() * directions.length)]
+  const horizontal = direction === 'right' || direction === 'left'
+  const water = document.createElement('canvas')
   water.setAttribute('aria-hidden', 'true')
   water.setAttribute('data-water-wash', '')
-  water.style.cssText = 'position:fixed;left:-2%;top:-20%;width:104%;height:40%;z-index:2;pointer-events:none;will-change:transform'
-  water.innerHTML = `
-    <defs>
-      <linearGradient id="koi-wash-depth" x1="0" x2=".08" y1="0" y2="1" gradientUnits="objectBoundingBox">
-        <stop stop-color="#a5d9c4" stop-opacity=".68"/>
-        <stop offset=".27" stop-color="#87c4b4"/>
-        <stop offset=".57" stop-color="#68aca4"/>
-        <stop offset=".85" stop-color="#87c9bb"/>
-        <stop offset="1" stop-color="#bce6cf" stop-opacity=".84"/>
-      </linearGradient>
-    </defs>
-    <path fill="#a6d9c6" opacity=".38" d="M0 55Q96 79 178 58T380 51Q469 73 542 52T731 35Q830 41 925 64T1103 49Q1152 33 1200 34V175H0Z"/>
-    <path fill="#6baea5" opacity=".35" d="M0 118H1200V169Q1138 166 1063 189T891 202Q806 178 739 178T558 199Q470 222 385 198T211 179Q104 175 0 203Z"/>
-    <path fill="url(#koi-wash-depth)" d="M0 75Q90 98 183 74T369 65Q470 88 554 65T738 49Q825 49 913 75T1098 63Q1155 45 1200 49V164Q1144 159 1071 180T899 192Q813 166 745 167T554 189Q469 210 379 188T199 169Q110 167 0 191Z"/>
-    <g fill="none" stroke-linecap="round">
-      <path stroke="#d9f0d6" opacity=".66" stroke-width="2.2" d="M-8 191Q71 173 133 171M173 170Q214 170 247 175M322 183Q394 204 455 201M502 198Q536 194 572 184M665 171Q734 161 786 171M852 181Q917 204 979 198M1048 188Q1108 166 1159 164"/>
-      <path stroke="#d3ead1" opacity=".43" stroke-width="1.8" d="M24 80Q92 94 156 82M264 62Q306 57 341 64M443 77Q487 82 528 70M668 50Q716 43 759 50M925 79Q981 91 1031 76M1116 59Q1154 47 1190 50"/>
-      <path stroke="#d5efd9" opacity=".26" stroke-width="2" d="M55 142q47-7 81-3m15 1 12 1M413 159q42 6 91-7m14-3 18-6M778 123q38-2 84 12m18 5 14 3M1050 146q39-17 80-19"/>
-    </g>`
-  host.after(water)
   host.dataset.wash = ''
+  host.dataset.direction = water.dataset.direction = direction
+  water.style.cssText = 'position:fixed;left:0;top:0;z-index:2;pointer-events:none;image-rendering:pixelated;transform-origin:0 0;will-change:transform'
+  host.after(water)
   host.style.willChange = 'clip-path'
-  const timing: KeyframeAnimationOptions = { duration: 920, easing: 'cubic-bezier(.38,.12,.3,.93)', fill: 'both' }
-  const clip = host.animate([{ clipPath: 'inset(-20% 0 0 0)' }, { clipPath: 'inset(120% 0 0 0)' }], timing)
-  // The band is 40% of the viewport high. Its midline follows the clip exactly.
-  const sweep = water.animate([{ transform: 'translateY(-50%)' }, { transform: 'translateY(300%)' }], timing)
-  sweep.onfinish = complete
+  const timing: KeyframeAnimationOptions = { duration, easing: 'cubic-bezier(.36,.12,.32,.95)', fill: 'both' }
+  let clip: Animation, sweep: Animation, paint: (t: number) => void, frameId = 0, lastPaint = 0
+
+  function layout() {
+    const elapsed = Number(sweep?.currentTime ?? 0)
+    if (sweep) { sweep.onfinish = null; sweep.cancel(); clip.cancel() }
+    const w = innerWidth, h = innerHeight
+    const span = Math.max(1, horizontal ? h : w), travel = horizontal ? w : h
+    const strip = waveStrip(water, span, Math.min(w, h))
+    paint = strip.paint
+    const point = (across: number, depth: number) => {
+      if (direction === 'up') return [w - across, h - depth]
+      if (direction === 'right') return [depth, h - across]
+      if (direction === 'left') return [w - depth, across]
+      return [across, depth]
+    }
+    const angle = { down: 0, up: 180, right: -90, left: 90 }[direction]
+    const transform = (depth: number) => {
+      const [x, y] = point(0, depth)
+      return 'translate(' + x + 'px,' + y + 'px) rotate(' + angle + 'deg)'
+    }
+    const boundary = (depth: number) => {
+      const points = strip.knots.map((k, i) => point(span * i / (strip.knots.length - 1), depth + k * cell))
+      points.push(point(span, travel + strip.height), point(0, travel + strip.height))
+      return 'polygon(' + points.map(([x, y]) => x + 'px ' + y + 'px').join(',') + ')'
+    }
+    clip = host.animate([{ clipPath: boundary(-strip.height) }, { clipPath: boundary(travel) }], timing)
+    sweep = water.animate([{ transform: transform(-strip.height) }, { transform: transform(travel) }], timing)
+    clip.currentTime = sweep.currentTime = elapsed
+    sweep.onfinish = complete
+    paint(elapsed / duration)
+  }
+
+  function animate(now: number) {
+    // The overall sweep stays on the compositor. Roll only the thin pixel lip.
+    if (now - lastPaint >= 45) { paint(Number(sweep.currentTime) / duration); lastPaint = now }
+    frameId = requestAnimationFrame(animate)
+  }
+  layout()
+  frameId = requestAnimationFrame(animate)
+  window.addEventListener('resize', layout)
   return () => {
+    window.removeEventListener('resize', layout)
+    cancelAnimationFrame(frameId)
     sweep.onfinish = null
-    clip.cancel()
-    sweep.cancel()
+    clip.cancel(); sweep.cancel()
     water.remove()
     host.style.willChange = ''
   }
