@@ -1,5 +1,6 @@
 // @ts-nocheck
-import { createTail, updateTail, spinePoint, unbendPoint } from './tail'
+import { updateTail, spinePoint } from './tail'
+import { createKoiFish, hash2, sampleKoi } from './fish'
 import { createPond } from './environment'
 import { beginBite, advanceBite, prepareBite } from './bite'
 import { pondBoundary } from './boundary'
@@ -22,39 +23,16 @@ let animationId = 0;
 const events = new AbortController();
 const { signal } = events;
 const TAU = Math.PI * 2;
-const sq = (x) => x * x;
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
 const lerp = (a, b, t) => a + (b - a) * t;
 const rand = (a = 0, b = 1) => a + Math.random() * (b - a);
 const pick = (arr) => arr[(Math.random() * arr.length) | 0];
-const ell = (u, v, cu, cv, ru, rv) => sq((u - cu) / ru) + sq((v - cv) / rv);
 const angleDiff = (a, b) => {
   let d = (a - b) % TAU;
   if (d > Math.PI) d -= TAU;
   if (d < -Math.PI) d += TAU;
   return d;
 };
-
-function hash2(i, j, s) {
-  let h = (Math.imul(i, 374761393) + Math.imul(j, 668265263) + Math.imul(s, 1442695041)) | 0;
-  h = Math.imul(h ^ (h >>> 13), 1274126177);
-  h ^= h >>> 16;
-  return (h >>> 0) / 4294967296;
-}
-
-function vnoise(x, y, s) {
-  const xi = Math.floor(x);
-  const yi = Math.floor(y);
-  const xf = x - xi;
-  const yf = y - yi;
-  const sx = xf * xf * (3 - 2 * xf);
-  const sy = yf * yf * (3 - 2 * yf);
-  const a = hash2(xi, yi, s);
-  const b = hash2(xi + 1, yi, s);
-  const c = hash2(xi, yi + 1, s);
-  const d = hash2(xi + 1, yi + 1, s);
-  return lerp(lerp(a, b, sx), lerp(c, d, sx), sy);
-}
 
 function segDist(px, py, ax, ay, bx, by) {
   const dx = bx - ax;
@@ -67,37 +45,9 @@ function segDist(px, py, ax, ay, bx, by) {
 
 const out = { r: 0, g: 0, b: 0, a: 1, ch: null, shine: 0 };
 
-function hit(c, a = 1, shine = 0, k = 1) {
-  out.r = c[0] * k;
-  out.g = c[1] * k;
-  out.b = c[2] * k;
-  out.a = a;
-  out.ch = null;
-  out.shine = shine;
-  return true;
-}
-
-function glyph(chars, c, a = 1, k = 1) {
-  out.r = c[0] * k;
-  out.g = c[1] * k;
-  out.b = c[2] * k;
-  out.a = a;
-  out.ch = chars;
-  out.shine = 0;
-  return true;
-}
-
 const mix = (c1, c2, t) => [lerp(c1[0], c2[0], t), lerp(c1[1], c2[1], t), lerp(c1[2], c2[2], t)];
 const WHITE = [240, 244, 255];
 
-/* =========================================================================
-   Animals
-   Each sampler works in sprite units: +u points the way the animal faces,
-   v is lateral. `prep` runs once per frame per animal.
-   ========================================================================= */
-
-
-const materialPoint = { u: 0, v: 0 };
 const ANIMALS = [
   {
     id: "koi",
@@ -115,44 +65,7 @@ const ANIMALS = [
     direction: 0,
     spread: 0.9,
     trail: { chars: "~-~=", color: [150, 175, 210], life: 1.8, at: [[-10, 0]] },
-    variants: [
-      { base: [255, 251, 231], patch: [235, 65, 42], thr: 0.5 },
-      { base: [253, 248, 229], patch: [221, 53, 37], thr: 0.55, dark: [35, 49, 51] },
-      { base: [255, 219, 67], patch: [245, 194, 42], thr: 0.72 },
-      { base: [248, 133, 54], patch: [255, 194, 103], thr: 0.68 },
-      { base: [246, 251, 243], patch: [207, 225, 224], thr: 0.6 },
-    ],
-    prep(e) {
-      e.tail ||= createTail(e.phase, e.heading);
-    },
-    sample(u, v, e) {
-      unbendPoint(e.tail, u, v, materialPoint);
-      u = materialPoint.u;
-      v = materialPoint.v;
-      if (u < -12.6 || u > 8.4) return false;
-      const P = e.pal;
-      const vv = v;
-      const av = Math.abs(vv);
-      let hw = 0;
-      if (u > 3.6) hw = 3.0 * Math.sqrt(Math.max(0, 1 - sq((u - 3.6) / 4.7)));
-      else if (u > -8) hw = 0.75 + 2.25 * Math.pow((u + 8) / 11.6, 1.25);
-      if (av < hw) {
-        if (u > 5.5 && u < 6.9 && av > hw - 1.15 && av < hw - 0.2) return hit([22, 22, 26]);
-        const n = vnoise(u * 0.3 + e.seed * 7, vv * 0.42, e.seed);
-        let c = n > P.thr ? P.patch : P.base;
-        if (P.dark && vnoise(u * 0.45, vv * 0.5 + 9, e.seed + 3) > 0.68) c = P.dark;
-        const k = hw - av < 0.65 ? 0.78 : av < 0.5 ? 1.05 : 1;
-        return hit(c, 1, 0.2, k);
-      }
-      const fin = mix(P.base, WHITE, 0.25);
-      if (u > 0.2 && u < 3.4 && ell(u + (av - hw) * 0.45, av, 1.6, hw + 1.1, 1.3, 1.3) < 1) return hit(fin, 0.55);
-      if (u <= -7.4) {
-        const t = -7.4 - u;
-        const fw = 0.55 + t * 0.72;
-        if (av < fw && !(t > 3.7 && av < (t - 3.7) * 1.1)) return hit(fin, 0.62);
-      }
-      return false;
-    },
+    sample: sampleKoi,
   },
 ];
 const ANIMAL_BY_ID = Object.fromEntries(ANIMALS.map((a) => [a.id, a]));
@@ -252,7 +165,7 @@ function drawOverlay() {
 
 let entities = [];
 let bokehs = [];
-let seedCounter = 1;
+let nextFishSlot = 0;
 let simTime = 0;
 let current = DEFAULTS.animal; // the animal shown in this tab (can differ from the saved pick in random mode)
 const pointer = { x: -1e9, y: -1e9, active: false, virtual: false, physicalX: undefined, physicalY: undefined };
@@ -285,17 +198,10 @@ function scaleFor(e) {
 
 function makeEntity(A, opts = {}) {
   const spawn = chooseKoiSpawn(R.W, R.H, entities.filter(e => !e.leaving));
-  const e = {
+  const fish = createKoiFish(nextFishSlot++, { x: opts.x ?? spawn.x, y: opts.y ?? spawn.y, z: opts.z });
+  return Object.assign(fish, {
     A,
-    x: opts.x ?? spawn.x,
-    y: opts.y ?? spawn.y,
-    z: opts.z ?? Math.pow(Math.random(), 0.85),
-    seed: (seedCounter++ * 2654435761) >>> 16,
-    pal: A.variants[[0, 1, 2, 4, 0, 2, 1, 3, 4, 0, 2, 1][(seedCounter - 2) % 12]],
-    phase: rand(0, TAU),
-    rateMul: rand(0.85, 1.15),
-    speedMul: rand(0.75, 1.25),
-    heading: 0,
+    behavior: createKoiBehavior(fish.seed),
     fade: opts.fade ?? 0,
     leaving: false,
     bokeh: !!opts.bokeh,
@@ -306,11 +212,7 @@ function makeEntity(A, opts = {}) {
     scared: 0,
     scareX: 0,
     scareY: 0,
-  };
-  e.heading = rand(0, TAU);
-  e.behavior = createKoiBehavior(e.seed);
-  e.tail = createTail(e.phase, e.heading);
-  return e;
+  });
 }
 
 function desiredCount(A) {
@@ -419,7 +321,6 @@ function step(dt) {
 
     e.speedMod = 1;
     e.phaseMod = 1;
-    A.prep(e, settings.sway, t);
     if (scare > 0) {
       e.speedMod = Math.max(e.speedMod, 0.9);
       e.phaseMod = Math.max(e.phaseMod, 1) * (1 + scare * 1.6);
@@ -432,7 +333,6 @@ function step(dt) {
       e.behavior.turnRate = 0;
       if (bite.eaten) addRipple(bite.eaten.x, bite.eaten.y, { dur: 0.7, maxR: 2.5, chars: "~", color: [170, 200, 230] });
       updateTail(e.tail, dt * motion, e.heading, bite.speed / (scaleFor(e) * R.cell), settings.sway, e.rateMul);
-      e.phase = e.tail.phase;
       continue;
     }
 
@@ -469,7 +369,6 @@ function step(dt) {
           e.behavior.turnRate = 0;
           beginBite(e, best, k * R.cell, t);
           updateTail(e.tail, dt * motion, e.heading, 0, settings.sway, e.rateMul);
-          e.phase = e.tail.phase;
           continue;
         }
         const close = clamp(1 - bestD / reachPx, 0, 1);
@@ -534,7 +433,6 @@ function step(dt) {
     const v = advanceKoiCruise(e, dx, dy, targetSpeed, baseSpeed, dt * motion, Math.min(2.2, turnMul));
     // Propulsive tail beats soften during a glide while forward inertia remains.
     updateTail(e.tail, dt * motion, e.heading, v / (R.cell * k), settings.sway, e.rateMul, plan.stroke || boost > 1.5 ? 1 : 0.28);
-    e.phase = e.tail.phase;
 
     // No wrapping: a fish that drifts out turns back through the same edge.
   }
@@ -575,7 +473,7 @@ function rasterize(e, order, buf, transparentBg, shadow = false) {
       const dx = i + 0.5 - cx;
       const u = dx * cs + dy * sn;
       const v = -dx * sn + dy * cs;
-      if (!A.sample(u, v, e)) continue;
+      if (!A.sample(u, v, e, out)) continue;
       const idx = j * cols + i;
       const a = out.a * fade;
       if (a <= 0.01) continue;
