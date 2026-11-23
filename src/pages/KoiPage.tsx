@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { startKoi } from '../lib/koi/scene'
 import { loadPondAssets } from '../lib/koi/assets'
 import { koiIntro, showLoadError } from '../lib/koi/intro'
+import { loadAtlas } from '../lib/koi/sunlight'
 import './koi.css'
 
 export default function KoiPage() {
@@ -11,9 +12,10 @@ export default function KoiPage() {
   useEffect(() => {
     let cancelled = false
     let stop: (() => void) | undefined
+    void loadAtlas()
     void loadPondAssets().then(assets => {
       if (cancelled || !water.current || !foreground.current) return
-      stop = startKoi(water.current, foreground.current, assets, () => koiIntro?.finish())
+      stop = startKoi(water.current, foreground.current, assets, koiIntro)
     }).catch(error => { if (!cancelled) showLoadError(error) })
     return () => {
       cancelled = true

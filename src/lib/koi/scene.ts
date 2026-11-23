@@ -10,18 +10,25 @@ import { drawDock } from './dock'
 import { PondSunlight } from './sunlight'
 import { createKoiBehavior, chooseKoiSpawn, planKoiBehavior, advanceKoiCruise } from './behavior'
 import type { PondAssets } from './assets'
+import type { KoiIntro } from './intro'
+import { startWaterWash } from './wash'
 // Koi scene adapted from Pawan-webdeveloper/Ascii-Animals-extension (MIT).
 // Upstream: https://github.com/Pawan-webdeveloper/Ascii-Animals-extension
 // See LICENSE in this directory. Only the koi sampler and canvas engine
 // are retained; extension UI, storage, and browser APIs are not used.
 
-export function startKoi(world: HTMLCanvasElement, bokehCanvas: HTMLCanvasElement, assets: PondAssets, onFirstFrame?: () => void): () => void {
+export function startKoi(world: HTMLCanvasElement, bokehCanvas: HTMLCanvasElement, assets: PondAssets, intro?: KoiIntro): () => void {
 const ctx = world.getContext("2d", { alpha: false });
 const bctx = bokehCanvas.getContext("2d");
 if (!ctx || !bctx) throw new Error("Unable to draw the pond on this device");
 let animationId = 0;
 const events = new AbortController();
 const { signal } = events;
+const featured = intro?.fish;
+const reservedSlot = intro?.slot;
+const startedWithIntro = !!intro;
+let suspended = !!intro;
+let stopWash;
 const TAU = Math.PI * 2;
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -196,9 +203,12 @@ function scaleFor(e) {
   return settings.size * clamp(window.innerWidth / 1000, 0.6, 1) * (e.A.scale || 1) * lerp(far, 1.12, e.z) * (e.bokeh ? 1.7 : 1);
 }
 
-function makeEntity(A, opts = {}) {
-  const spawn = chooseKoiSpawn(R.W, R.H, entities.filter(e => !e.leaving));
-  const fish = createKoiFish(nextFishSlot++, { x: opts.x ?? spawn.x, y: opts.y ?? spawn.y, z: opts.z });
+function makeEntity(A, opts = {}, fish = undefined) {
+  if (!fish) {
+    if (nextFishSlot === reservedSlot) nextFishSlot++;
+    const spawn = chooseKoiSpawn(R.W, R.H, entities.filter(e => !e.leaving));
+    fish = createKoiFish(nextFishSlot++, { x: opts.x ?? spawn.x, y: opts.y ?? spawn.y, z: opts.z });
+  }
   return Object.assign(fish, {
     A,
     behavior: createKoiBehavior(fish.seed),
@@ -558,7 +568,7 @@ function render(dt) {
   buf.set(pond.pixels);
   // Cast shadows on the floor before lighting it. Fish remain above the ribbons.
   for (const e of entities) rasterize(e, -1, buf, false, true);
-  sunlight.update(reducedMotion.matches ? 0 : simTime);
+  sunlight.update(reducedMotion.matches ? 0 : simTime, reducedMotion.matches);
   sunlight.apply(buf, pond.causticMask);
   R.occ.fill(-1);
   glyphs.length = 0;
@@ -566,7 +576,7 @@ function render(dt) {
   const sorted = entities.slice().sort((a, b) => a.z - b.z);
   for (let n = 0; n < sorted.length; n++) {
     rasterize(sorted[n], n, buf, false);
-    emitTrails(sorted[n], dt);
+    if (dt || !suspended) emitTrails(sorted[n], dt);
   }
   sunlight.apply(buf, undefined, R.occ);
   waterSurface.refract(buf, submergedPixels, R.cols, R.rows, R.cell / R.dpr);
@@ -702,19 +712,43 @@ function frame(now) {
 }
 
 
+function releaseFish() {
+  if (!suspended || signal.aborted) return;
+  suspended = false;
+  cancelAnimationFrame(animationId);
+  stopWash?.();
+  stopWash = undefined;
+  intro.stop();
+  intro = undefined;
+  last = 0;
+  if (!document.hidden) animationId = requestAnimationFrame(frame);
+}
+
 resize();
+if (featured) entities.push(makeEntity(ANIMAL_BY_ID[current], { fade: 1 }, featured));
 syncPopulation(true);
 render(0);
-onFirstFrame?.();
+if (intro) {
+  intro.finish(skip => {
+    if (signal.aborted) return;
+    if (skip) releaseFish();
+    else stopWash = startWaterWash(intro.host, releaseFish);
+  });
+}
 
 window.addEventListener("resize", () => {
   clearContact();
   dropCursor(true);
   pointer.active = false;
   resize();
-  syncPopulation();
+  syncPopulation(suspended);
+  if (suspended) {
+    entities = entities.filter(e => !e.leaving);
+    render(0);
+  }
 }, { signal });
 window.addEventListener("pointerdown", (event) => {
+  if (suspended) return;
   if (event.button !== 0 || !event.isPrimary) return;
   pointerKind = event.pointerType;
   if (event.pointerType !== "mouse") {
@@ -739,6 +773,7 @@ window.addEventListener("pointerdown", (event) => {
   tap(pointer.virtual ? pointer.x : event.clientX * R.dpr, pointer.virtual ? pointer.y : event.clientY * R.dpr);
 }, { signal });
 window.addEventListener("pointermove", (event) => {
+  if (suspended) return;
   if (event.pointerType !== "mouse") {
     if (!contact || contact.id !== event.pointerId) return;
     event.preventDefault();
@@ -791,12 +826,18 @@ document.addEventListener("visibilitychange", () => {
   dropCursor(true);
   cancelAnimationFrame(animationId);
   last = 0;
-  if (!document.hidden) animationId = requestAnimationFrame(frame);
+  if (suspended && document.hidden) releaseFish();
+  else if (!suspended && !document.hidden) animationId = requestAnimationFrame(frame);
 }, { signal });
-reducedMotion.addEventListener("change", () => syncPopulation(), { signal });
-if (!document.hidden) animationId = requestAnimationFrame(frame);
+reducedMotion.addEventListener("change", () => {
+  syncPopulation();
+  if (suspended && reducedMotion.matches) releaseFish();
+}, { signal });
+if (!startedWithIntro && !document.hidden) animationId = requestAnimationFrame(frame);
 
 return () => {
+  stopWash?.();
+  if (suspended) intro?.stop();
   clearContact();
   dropCursor(true);
   events.abort();

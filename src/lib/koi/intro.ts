@@ -2,7 +2,10 @@ import { createKoiFish, koiPopulation, type KoiFish } from './fish'
 import { createKoiSideView } from './side-view'
 import { updateTail } from './tail'
 
-type KoiIntro = { fish: KoiFish; slot: number; finish: () => void; stop: () => void }
+export type KoiIntro = {
+  fish: KoiFish; slot: number; host: HTMLElement
+  finish: (onReady: (skipMotion: boolean) => void) => void; stop: () => void
+}
 export let koiIntro: KoiIntro | undefined
 
 export function startKoiIntro() {
@@ -29,6 +32,7 @@ export function startKoiIntro() {
   let lastTime = 0
   let readyAt: number | undefined
   let gaze = 0
+  let release: ((skipMotion: boolean) => void) | undefined
 
   // The camera centers the fish. Its position stays in the pond's backing pixels.
   function resize() {
@@ -55,7 +59,7 @@ export function startKoiIntro() {
         gaze = t * t * (3 - 2 * t)
         draw()
       } else if (elapsed >= 460) {
-        stop()
+        transfer(false)
         return
       }
     }
@@ -65,14 +69,22 @@ export function startKoiIntro() {
   function syncMotion() {
     cancelAnimationFrame(frameId)
     lastTime = 0
+    if (readyAt !== undefined && !release) return
     const paused = document.hidden || motion.matches
     host!.toggleAttribute('data-paused', paused)
     if (!paused) frameId = requestAnimationFrame(frame)
-    else if (readyAt !== undefined) stop()
+    else if (readyAt !== undefined) transfer(true)
   }
 
-  function finish() {
+  function transfer(skipMotion: boolean) {
+    const begin = release
+    release = undefined
+    begin?.(skipMotion)
+  }
+
+  function finish(onReady: (skipMotion: boolean) => void) {
     if (readyAt !== undefined || signal.aborted) return
+    release = onReady
     readyAt = performance.now()
     host!.setAttribute('data-ready', '')
     syncMotion()
@@ -88,7 +100,7 @@ export function startKoiIntro() {
     koiIntro = undefined
   }
 
-  koiIntro = { fish, slot, finish, stop }
+  koiIntro = { fish, slot, host, finish, stop }
   window.addEventListener('resize', resize, { signal })
   window.addEventListener('pagehide', event => { if (!event.persisted) stop() }, { signal })
   window.addEventListener('popstate', () => { if (location.pathname !== '/') stop() }, { signal })
