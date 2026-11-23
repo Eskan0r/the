@@ -1,0 +1,69 @@
+.koi-intro-scenery,
+.koi-intro-backdrop,
+.koi-bubbles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.koi-intro-backdrop {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+  animation: koi-backdrop-appear 350ms ease-out both;
+}
+
+.koi-grasses {
+  position: absolute;
+  bottom: -3px;
+  width: clamp(54px, 9vmin, 100px);
+  overflow: visible;
+  fill: #487b64;
+  opacity: 0.78;
+}
+
+.koi-grasses.left { left: 3%; }
+.koi-grasses.right { right: 4%; width: clamp(44px, 7vmin, 80px); transform: scaleX(-1); }
+.koi-grass-far, .koi-grass-near {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: koi-grass-sway 6s ease-in-out infinite alternate;
+}
+.koi-grass-far { fill: #63977c; animation-duration: 8s; animation-delay: -5s; }
+.koi-grasses.right .koi-grass-near { animation-delay: -4s; }
+
+.koi-bubbles i {
+  --drift: 10px;
+  position: absolute;
+  bottom: 3%;
+  left: 8%;
+  box-sizing: border-box;
+  width: 7px;
+  aspect-ratio: 1;
+  border: 1px solid #d3eee798;
+  border-radius: 50%;
+  box-shadow: inset 1px 1px #fffde6b0, inset -1px -1px #3d807744;
+  animation: koi-bubble-rise 8s linear -2.4s infinite;
+}
+.koi-bubbles i:nth-child(2) { left: 11%; width: 4px; animation-delay: -5.3s; }
+.koi-bubbles i:nth-child(3) { left: 17%; width: 6px; animation-duration: 10s; animation-delay: -7.5s; }
+.koi-bubbles i:nth-child(4) { left: 83%; width: 5px; animation-duration: 9s; animation-delay: -4.1s; }
+.koi-bubbles i:nth-child(5) { left: 88%; width: 8px; --drift: -15px; animation-delay: -6.8s; }
+.koi-bubbles i:nth-child(6) { left: 92%; width: 4px; animation-delay: -1.2s; }
+
+@keyframes koi-backdrop-appear { from { opacity: 0; } to { opacity: 1; } }
+@keyframes koi-grass-sway { from { transform: skewX(-4deg); } to { transform: skewX(5deg); } }
+@keyframes koi-bubble-rise {
+  0% { transform: translate(0, 0) scale(0.7); opacity: 0; }
+  12% { opacity: 0.8; }
+  50% { transform: translate(var(--drift), -29vh) scale(0.92); }
+  82% { opacity: 0.56; }
+  100% { transform: translate(0, -58vh) scale(1); opacity: 0; }
+}
+
+#koi-intro[data-paused] .koi-intro-scenery * { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .koi-intro-backdrop { animation: none; }
+}

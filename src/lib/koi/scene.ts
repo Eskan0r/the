@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { updateTail, spinePoint } from './tail'
-import { createKoiFish, hash2, sampleKoi } from './fish'
+import { createKoiFish, hash2, koiPopulation, sampleKoi } from './fish'
 import { createPond } from './environment'
 import { beginBite, advanceBite, prepareBite } from './bite'
 import { pondBoundary } from './boundary'
@@ -15,10 +15,10 @@ import type { PondAssets } from './assets'
 // See LICENSE in this directory. Only the koi sampler and canvas engine
 // are retained; extension UI, storage, and browser APIs are not used.
 
-export function startKoi(world: HTMLCanvasElement, bokehCanvas: HTMLCanvasElement, assets: PondAssets): () => void {
+export function startKoi(world: HTMLCanvasElement, bokehCanvas: HTMLCanvasElement, assets: PondAssets, onFirstFrame?: () => void): () => void {
 const ctx = world.getContext("2d", { alpha: false });
 const bctx = bokehCanvas.getContext("2d");
-if (!ctx || !bctx) return () => {};
+if (!ctx || !bctx) throw new Error("Unable to draw the pond on this device");
 let animationId = 0;
 const events = new AbortController();
 const { signal } = events;
@@ -216,8 +216,7 @@ function makeEntity(A, opts = {}) {
 }
 
 function desiredCount(A) {
-  const area = (window.innerWidth * window.innerHeight) / (1440 * 900);
-  return Math.max(1, Math.round(A.count * settings.density * clamp(area, 0.35, 2.2)));
+  return koiPopulation(window.innerWidth, window.innerHeight, A.count, settings.density);
 }
 
 function syncPopulation(initial = false) {
@@ -706,6 +705,7 @@ function frame(now) {
 resize();
 syncPopulation(true);
 render(0);
+onFirstFrame?.();
 
 window.addEventListener("resize", () => {
   clearContact();

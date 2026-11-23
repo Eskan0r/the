@@ -25,6 +25,11 @@ export type KoiFish = {
   seed: number; pal: Palette; rateMul: number; speedMul: number; tail: Tail
 }
 
+export function koiPopulation(width: number, height: number, baseCount = 12, density = 1) {
+  const area = width * height / (1440 * 900)
+  return Math.max(1, Math.round(baseCount * density * Math.max(0.35, Math.min(2.2, area))))
+}
+
 // Slot is the zero-based position in the pond's spawn sequence.
 export function createKoiFish(slot: number, position: { x: number; y: number; z?: number }, random = Math.random): KoiFish {
   const z = position.z ?? Math.pow(random(), 0.85)
@@ -62,6 +67,13 @@ function noise(x: number, y: number, seed: number) {
 
 export type KoiSample = { r: number; g: number; b: number; a: number; shine: number }
 
+export function koiPigment(u: number, v: number, fish: KoiFish) {
+  const { pal, seed } = fish
+  const n = noise(u * 0.3 + seed * 7, v * 0.42, seed)
+  if (pal.dark && noise(u * 0.45, v * 0.5 + 9, seed + 3) > 0.68) return pal.dark
+  return n > pal.thr ? pal.patch : pal.base
+}
+
 function hit(out: KoiSample, color: Color, alpha = 1, shine = 0, brightness = 1) {
   out.r = color[0] * brightness
   out.g = color[1] * brightness
@@ -81,16 +93,14 @@ export function sampleKoi(u: number, v: number, fish: KoiFish, out: KoiSample): 
   u = materialPoint.u
   v = materialPoint.v
   if (u < -12.6 || u > 8.4) return false
-  const { pal, seed } = fish
+  const { pal } = fish
   const av = Math.abs(v)
   let halfWidth = 0
   if (u > 3.6) halfWidth = 3 * Math.sqrt(Math.max(0, 1 - square((u - 3.6) / 4.7)))
   else if (u > -8) halfWidth = 0.75 + 2.25 * Math.pow((u + 8) / 11.6, 1.25)
   if (av < halfWidth) {
     if (u > 5.5 && u < 6.9 && av > halfWidth - 1.15 && av < halfWidth - 0.2) return hit(out, eye)
-    const n = noise(u * 0.3 + seed * 7, v * 0.42, seed)
-    let color = n > pal.thr ? pal.patch : pal.base
-    if (pal.dark && noise(u * 0.45, v * 0.5 + 9, seed + 3) > 0.68) color = pal.dark
+    const color = koiPigment(u, v, fish)
     const brightness = halfWidth - av < 0.65 ? 0.78 : av < 0.5 ? 1.05 : 1
     return hit(out, color, 1, 0.2, brightness)
   }

@@ -6,9 +6,36 @@
     <meta name="theme-color" content="#0d1016" />
     <meta name="description" content="Ronak Chavva, full-stack software engineer. Backend systems, AI tooling, and interfaces." />
     <title>Ronak Chavva</title>
+    <script>
+      if (location.pathname === '/' && !location.hostname.startsWith('os.')) {
+        document.documentElement.classList.add('koi-loading')
+      }
+    </script>
+    <style>
+      html { background: #0d1016; }
+      #koi-intro { display: none; }
+      html.koi-loading, .koi-loading #koi-intro { background: #79b6a9; }
+      .koi-loading #koi-intro {
+        display: grid; place-items: center; position: fixed; inset: 0; z-index: 1;
+        background-image: radial-gradient(ellipse at 30% 18%, #c5e0b04d, transparent 68%),
+          radial-gradient(ellipse at 85% 100%, #407d792e, transparent 68%);
+      }
+      #koi-intro canvas {
+        position: relative; z-index: 1; width: min(84vmin, 640px); height: auto; image-rendering: pixelated;
+        filter: drop-shadow(5px 9px 0 #234d5430);
+      }
+      #load-error:not([hidden]) {
+        position: fixed; inset: 0; z-index: 2; display: grid; align-content: center;
+        justify-items: center; gap: 0.75rem; color: #183f3d; background: #a9cdbf;
+        font: 1rem system-ui, sans-serif;
+      }
+      #load-error a { color: inherit; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <div id="koi-intro" aria-hidden="true"><canvas width="96" height="44"></canvas></div>
+    <div id="load-error" role="alert" hidden>This page couldn't load. <a href="">Reload page</a></div>
+    <script type="module" src="/src/bootstrap.ts"></script>
   </body>
 </html>
