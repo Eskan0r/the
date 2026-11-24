@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import '../styles/globals.css'
 import HeroSection from '../components/landing/HeroSection'
 import Manifesto from '../components/landing/Manifesto'
 import ProjectTicker from '../components/landing/ProjectTicker'

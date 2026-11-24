@@ -1,0 +1,29 @@
+.koi-pond {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #79b6a9;
+  background-image: url('/pond/scenery/background.png');
+  background-size: cover;
+  isolation: isolate;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  cursor: url('/cursors/windows-arrow.png') 0 0, default;
+}
+
+.koi-pond canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.koi-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 15% 5%, #fff1b512, transparent 65%);
+}

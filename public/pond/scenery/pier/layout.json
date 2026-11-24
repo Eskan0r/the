@@ -1,0 +1,28 @@
+{
+  "desktop": {
+    "bounds": {
+      "x": 0,
+      "y": 284,
+      "width": 324,
+      "height": 340
+    },
+    "deck": {
+      "right": 292,
+      "top": 288,
+      "bottom": 604
+    }
+  },
+  "mobile": {
+    "bounds": {
+      "x": 0,
+      "y": 240,
+      "width": 132,
+      "height": 212
+    },
+    "deck": {
+      "right": 100,
+      "top": 244,
+      "bottom": 432
+    }
+  }
+}
