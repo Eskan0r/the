@@ -588,7 +588,7 @@ function render(dt) {
   R.loCtx.putImageData(R.img, 0, 0);
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(R.lo, 0, 0, R.cols * R.cell, R.rows * R.cell);
-  ctx.drawImage(pond.surface, 0, 0, R.cols * R.cell, R.rows * R.cell);
+  pond.drawSurface(ctx, R.cell, reducedMotion.matches ? null : simTime);
   ctx.drawImage(R.overlay, 0, 0);
 
   ctx.font = R.font;

@@ -221,6 +221,50 @@ for (const [index, direction] of ['down', 'up', 'right', 'left'].entries()) test
   assert.ok(animations.every(a => a.cancelled) && water.removed)
 })
 
+test('the surface caches each floating plant independently and reduces its motion to a still pose', () => {
+  let reads = 0
+  const document = { createElement() {
+    const sources = []
+    return { sources, getContext: () => new Proxy({
+      drawImage: image => sources.push(image.name),
+      createRadialGradient: () => ({ addColorStop() {} }),
+      getImageData(_x, _y, w, h) { reads++; return { data: new Uint8ClampedArray(w * h * 4) } },
+    }, { get: (o, k) => o[k] ?? (() => {}) }) }
+  } }
+  const images = new Proxy({}, { get: (_o, name) => ({ name, width: 128, height: 128 }) })
+  const pond = koiModules({ document })('environment').createPond(160, 100, { images, masks: images })
+  const bakedReads = reads
+  function pose(time) {
+    const sprites = [], rotations = []
+    let petalPixels = 0
+    const context = new Proxy({ drawImage: im => sprites.push(im),
+      rotate: angle => rotations.push(angle), fillRect() { petalPixels++ },
+    }, { get: (o, k) => o[k] ?? (() => {}) })
+    pond.drawSurface(context, 4, time)
+    return { sprites, rotations, petalPixels }
+  }
+  const rest = pose(null)
+  assert.equal(rest.sprites.length, 12)
+  assert.equal(new Set(rest.sprites).size, rest.sprites.length)
+  assert.equal(rest.sprites.filter(s => s.sources.length === 2).length, 3)
+  for (const { sources } of rest.sprites) {
+    assert.match(sources[0], /^(lily-pad|maple-leaf)-/)
+    if (sources.length > 1) assert.match(sources[1], /^flower-/)
+    assert.ok(sources.length <= 2)
+  }
+  assert.deepEqual(rest.rotations, [])
+  assert.equal(rest.petalPixels, 0)
+  const quiet = pose(2), visit = pose(10)
+  assert.equal(quiet.petalPixels, 0)
+  assert.equal(quiet.rotations.length, 8)
+  assert.ok(quiet.rotations.every(a => Math.abs(a) < 0.04))
+  assert.ok(visit.petalPixels > 0)
+  assert.equal(pose(20).petalPixels, 0)
+  assert.deepEqual(visit.sprites, rest.sprites)
+  assert.notDeepEqual(quiet.rotations, pose(3).rotations)
+  assert.equal(reads, bakedReads)
+})
+
 for (const ending of ['complete', 'hidden', 'reduced motion']) test(`the live pond swims under the wash and keeps one frame loop on ${ending}`, async () => {
   const media = Object.assign(new EventTarget(), { matches: false })
   const window = Object.assign(new EventTarget(), { innerWidth: 160, innerHeight: 120, devicePixelRatio: 1,
@@ -233,7 +277,7 @@ for (const ending of ['complete', 'hidden', 'reduced motion']) test(`the live po
   let serial = 0, ready, waveFinished, waveStopped = 0, released = 0, pondDraws = 0
   const seen = new Set(), slots = []
   const overrides = {
-    './environment': { createPond: (w, h) => ({ pixels: new Uint32Array(w * h) }) },
+    './environment': { createPond: (w, h) => ({ pixels: new Uint32Array(w * h), drawSurface() {} }) },
     './sunlight': { PondSunlight: class { apply() {} update() {} } },
     './water': { WaterSurface: class { advance() {} refract() {} release() {} } }, './dock': { drawDock() { pondDraws++ } },
     './wash': { startWaterWash(_host, complete) { waveFinished = complete; return () => { waveStopped++ } } },

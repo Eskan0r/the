@@ -20,6 +20,8 @@ deep water to jade at the banks. Submerged pebbles pick up the local water color
 The bank sprites keep their painted transparency and contact shadows. Their
 stone faces and olive moss receive separate color adjustments at load time.
 The lily beds and floating leaves reserve open water around their silhouettes.
+Each animated pad, its flower, and its shadow share a small cached sprite.
+The occasional drifting petal uses the same pond clock as the lilies.
 
 Normal builds use the PNG files as-is. To regenerate the original artwork,
 start Vite on port 5180 and local Chromium debugging on port 9336, then run:

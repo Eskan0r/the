@@ -20,14 +20,12 @@ function enrichGardenColor(pixels: Uint8ClampedArray, i: number) {
 // Compose editable PNG sprites once per resize. Fish and light remain separate.
 export function createPond(cols: number, rows: number, assets: PondAssets) {
   const bed = document.createElement('canvas')
-  const surface = document.createElement('canvas')
   const mask = document.createElement('canvas')
-  bed.width = surface.width = mask.width = cols
-  bed.height = surface.height = mask.height = rows
+  bed.width = mask.width = cols
+  bed.height = mask.height = rows
   const g = bed.getContext('2d')!
-  const s = surface.getContext('2d')!
   const m = mask.getContext('2d')!
-  for (const context of [g, s, m]) context.imageSmoothingEnabled = false
+  g.imageSmoothingEnabled = m.imageSmoothingEnabled = false
   g.drawImage(assets.images.background, 0, 0, cols, rows)
   // A cool deep pool opens into jade shallows. Overlay retains the PNG's texture.
   g.save()
@@ -60,10 +58,27 @@ export function createPond(cols: number, rows: number, assets: PondAssets) {
   function reserve(x: number, y: number, radius: number) {
     clearings.push({ x, y, radius: radius * unit })
   }
+  const plants: { sprite: HTMLCanvasElement; x: number; y: number; phase: number; moving: boolean }[] = []
+  function cachePlant(x: number, y: number, name: string, scale: number, moving: boolean, flower?: string, flowerScale = 0) {
+    const image = assets.images[name], sprite = document.createElement('canvas')
+    const width = image.width * scale / 4, height = image.height * scale / 4
+    const left = Math.round(x - width / 2), top = Math.round(y - height / 2)
+    sprite.width = Math.max(1, Math.round(width)); sprite.height = Math.max(1, Math.round(height))
+    const plant = sprite.getContext('2d', { willReadFrequently: true })!
+    plant.imageSmoothingEnabled = false
+    plant.drawImage(image, 0, 0, sprite.width, sprite.height)
+    if (flower) draw(plant, assets.images['flower-' + flower], x - left - unit, y - top - unit * 0.7, flowerScale)
+    const pixels = plant.getImageData(0, 0, sprite.width, sprite.height)
+    for (let i = 0; i < pixels.data.length; i += 4) {
+      if (pixels.data[i + 3]) enrichGardenColor(pixels.data, i)
+    }
+    plant.putImageData(pixels, 0, 0)
+    plants.push({ sprite, x: left + sprite.width / 2, y: top + sprite.height / 2,
+      phase: 1.7 * x / cols + 2.3 * y / rows + plants.length * 0.54, moving })
+  }
   function lily(x: number, y: number, radius: number, variant: number, flower?: 'pink' | 'ivory') {
     reserve(x, y, radius + 2.4)
-    draw(s, assets.images[`lily-pad-${String(variant).padStart(2, '0')}`], x, y, radius * unit / 16)
-    if (flower) draw(s, assets.images['flower-' + flower], x - unit, y - unit * 0.7, unit * radius / 13)
+    cachePlant(x, y, `lily-pad-${String(variant).padStart(2, '0')}`, radius * unit / 16, true, flower, unit * radius / 13)
   }
 
   const northX = cols * 0.275, northY = rows * 0.16
@@ -80,7 +95,7 @@ export function createPond(cols: number, rows: number, assets: PondAssets) {
 
   for (const [index, x, y] of [[1, 0.13, 0.262], [2, 0.765, 0.065], [3, 0.89, 0.85], [4, 0.64, 0.938]]) {
     reserve(x * cols, y * rows, 4.9)
-    draw(s, assets.images[`maple-leaf-${String(index).padStart(2, '0')}`], x * cols, y * rows, unit / 2)
+    cachePlant(x * cols, y * rows, `maple-leaf-${String(index).padStart(2, '0')}`, unit / 2, false)
   }
 
   // The exposed stones turn each corner in a short, stepped bank. Draw from
@@ -119,12 +134,49 @@ export function createPond(cols: number, rows: number, assets: PondAssets) {
   const maskPixels = m.getImageData(0, 0, cols, rows).data
   const causticMask = new Uint8Array(cols * rows)
   const bedPixels = g.getImageData(0, 0, cols, rows).data
-  const plants = s.getImageData(0, 0, cols, rows)
-  for (let i = 0; i < causticMask.length; i++) {
-    const offset = i * 4
-    causticMask[i] = maskPixels[offset]
-    if (plants.data[offset + 3]) enrichGardenColor(plants.data, offset)
+  for (let i = 0; i < causticMask.length; i++) causticMask[i] = maskPixels[i * 4]
+
+  function drawSurface(ctx: CanvasRenderingContext2D, cell: number, time: number | null) {
+    ctx.save()
+    ctx.scale(cell, cell)
+    // A blossom sheds a single petal into the open water between beds.
+    if (time !== null && time >= 7) {
+      const visit = time - 7, age = visit % 32
+      if (age < 7) {
+        const t = age / 7, north = Math.floor(visit / 32) % 2 === 0
+        const drift = t * (1.7 - 0.7 * t)
+        const x = (north ? northX : southX) + (2 + drift * 22) * unit
+        const y = (north ? northY : southY) + (north ? 1 : -1) * (1 + 8 * drift + Math.sin(t * 5.4)) * unit
+        ctx.save()
+        ctx.translate(x, y)
+        ctx.rotate(0.45 * Math.sin(2.6 * t))
+        const size = Math.min(0.86, unit * 0.72)
+        ctx.scale(size, size)
+        ctx.globalAlpha = Math.min(1, (7 - age) / 1.6)
+        ctx.fillStyle = '#cf7895'
+        ctx.fillRect(-1, -1, 2, 2)
+        ctx.fillStyle = '#ef9eaf'
+        ctx.fillRect(0, -2, 2, 2)
+        ctx.fillStyle = '#ffced1'
+        ctx.fillRect(1, -2, 1, 1)
+        ctx.restore()
+      }
+    }
+    for (const plant of plants) {
+      const { sprite, x, y, phase } = plant
+      if (!plant.moving || time === null) {
+        ctx.drawImage(sprite, x - sprite.width / 2, y - sprite.height / 2)
+        continue
+      }
+      const swell = Math.sin(time * 0.93 + phase)
+      const cross = Math.sin(time * 0.61 + phase * 1.4)
+      ctx.save()
+      ctx.translate(x + unit * (0.48 * cross + 0.13 * swell), y + unit * 0.55 * swell)
+      ctx.rotate(0.035 * cross)
+      ctx.drawImage(sprite, -sprite.width / 2, -sprite.height / 2)
+      ctx.restore()
+    }
+    ctx.restore()
   }
-  s.putImageData(plants, 0, 0)
-  return { pixels: new Uint32Array(bedPixels.buffer), surface, causticMask }
+  return { pixels: new Uint32Array(bedPixels.buffer), drawSurface, causticMask }
 }

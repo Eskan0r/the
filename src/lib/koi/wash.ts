@@ -2,8 +2,9 @@ type Direction = 'down' | 'up' | 'right' | 'left'
 const directions: readonly Direction[] = ['down', 'up', 'right', 'left']
 const cell = 4
 const duration = 960
-const teal = 0x00969661, deep = 0x00878451, jade = 0x00adbe80
-const glass = 0x00bfd1a0, mint = 0x00c6dfae, foam = 0x00d8f1dc
+// Packed BGR channels for the pond's lagoon, jade shallows and sunlit foam.
+const teal = 0x00a99f27, deep = 0x009b7e22, jade = 0x00acc34e
+const glass = 0x00c9d37b, mint = 0x00d3ebae, foam = 0x00e0f5df
 
 // One asymmetric front with a breaking shoulder and a shallower trailing bay.
 // The clip and raster share the same cross-sections, including on resize.
