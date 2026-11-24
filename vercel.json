@@ -1,5 +1,6 @@
 {
   "devCommand": "vite",
   "buildCommand": "tsc && vite build",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

@@ -1,16 +1,28 @@
 import { createKoiFish, koiPopulation, type KoiFish } from './fish'
 import { createKoiSideView } from './side-view'
 import { updateTail } from './tail'
+import { isFishRoute } from './route'
 
+type LoadStage = 'app' | 'scenery' | 'sunlight'
 export type KoiIntro = {
   fish: KoiFish; slot: number; host: HTMLElement
   minimumVisible: Promise<void>
+  markLoaded: (stage: LoadStage) => void
   finish: (onReady: (skipMotion: boolean) => void) => void; stop: () => void
 }
 export let koiIntro: KoiIntro | undefined
 
+function paintLoadingBar(bar: HTMLElement, percent: number) {
+  if (percent <= Number(bar.dataset.progress)) return
+  const split = bar.dataset.mode?.startsWith('split')
+  bar.style.setProperty('--lead', (split ? Math.min(50, percent) : percent) + '%')
+  if (split) bar.style.setProperty('--trail', Math.max(0, percent - 50) + '%')
+  bar.dataset.progress = String(percent)
+}
+
 export function startKoiIntro() {
-  if (koiIntro) return
+  if (koiIntro || !isFishRoute(location)) return
+  if (!document.getElementById('koi-intro')) document.dispatchEvent(new Event('koi-enter'))
   const host = document.getElementById('koi-intro')
   host?.dispatchEvent(new Event('koi-start'))
   const canvas = host?.querySelector('canvas')
@@ -29,12 +41,27 @@ export function startKoiIntro() {
   const motion = matchMedia('(prefers-reduced-motion: reduce)')
   const events = new AbortController()
   const { signal } = events
+  const bar = host.querySelector<HTMLElement>('.koi-loading-bar')
+  const loaded = new Set<LoadStage>()
+  let visibleFraction = 0
   let frameId = 0
   let sceneryFrame = 0
   let lastTime = 0
   let readyAt: number | undefined
   let gaze = 0
   let release: ((skipMotion: boolean) => void) | undefined
+
+  // Weigh actual prerequisites. The last four points belong to the first lit pond draw.
+  function updateBar() {
+    if (!bar || signal.aborted || (document.hidden && readyAt === undefined)) return
+    const percent = 4 + Math.floor(54 * visibleFraction) + (loaded.has('app') ? 8 : 0)
+      + (loaded.has('scenery') ? 15 : 0) + (loaded.has('sunlight') ? 15 : 0)
+    paintLoadingBar(bar, readyAt === undefined ? percent : 100)
+  }
+  function markLoaded(stage: LoadStage) {
+    loaded.add(stage)
+    updateBar()
+  }
 
   // The camera centers the fish. Its position stays in the pond's backing pixels.
   function resize() {
@@ -73,6 +100,7 @@ export function startKoiIntro() {
     cancelAnimationFrame(frameId)
     lastTime = 0
     if (readyAt !== undefined && !release) return
+    updateBar()
     const paused = document.hidden || motion.matches
     host!.toggleAttribute('data-paused', paused)
     if (!paused) frameId = requestAnimationFrame(frame)
@@ -90,6 +118,7 @@ export function startKoiIntro() {
     release = onReady
     readyAt = performance.now()
     host!.setAttribute('data-ready', '')
+    updateBar()
     syncMotion()
   }
 
@@ -105,13 +134,15 @@ export function startKoiIntro() {
 
   window.addEventListener('resize', resize, { signal })
   window.addEventListener('pagehide', event => { if (!event.persisted) stop() }, { signal })
-  window.addEventListener('popstate', () => { if (location.pathname !== '/') stop() }, { signal })
+  window.addEventListener('popstate', () => { if (!isFishRoute(location)) stop() }, { signal })
+  host.addEventListener('koi-dismiss', stop, { signal })
   document.addEventListener('visibilitychange', syncMotion, { signal })
   motion.addEventListener('change', syncMotion, { signal })
   resize()
   updateTail(fish.tail, 0.5, fish.heading, speed, 0.5, fish.rateMul)
   draw()
-  koiIntro = { fish, slot, host, finish, stop, minimumVisible: waitForVisibleFish(signal) }
+  const minimumVisible = waitForVisibleFish(signal, fraction => { visibleFraction = fraction; updateBar() })
+  koiIntro = { fish, slot, host, finish, stop, minimumVisible, markLoaded }
   syncMotion()
   // Give the first fish frame a paint before requesting optional scenery.
   sceneryFrame = requestAnimationFrame(() => {
@@ -125,7 +156,7 @@ export function startKoiIntro() {
 }
 
 // Start at the first draw. Hidden time never consumes the visible swim period.
-export function waitForVisibleFish(signal: AbortSignal): Promise<void> {
+export function waitForVisibleFish(signal: AbortSignal, onProgress: (fraction: number) => void): Promise<void> {
   return new Promise(resolve => {
     let remaining = 2000
     let since: number | undefined
@@ -141,18 +172,12 @@ export function waitForVisibleFish(signal: AbortSignal): Promise<void> {
       const now = performance.now()
       if (since !== undefined) remaining -= Math.max(0, now - since)
       since = document.hidden ? undefined : now
+      onProgress(1 - Math.max(0, remaining) / 2000)
       if (remaining <= 0) done()
-      else if (!document.hidden) timer = setTimeout(sync, Math.ceil(remaining))
+      else if (!document.hidden) timer = setTimeout(sync, Math.min(50, Math.ceil(remaining)))
     }
     document.addEventListener('visibilitychange', sync)
     signal.addEventListener('abort', done, { once: true })
     sync()
   })
-}
-
-export function showLoadError(error: unknown) {
-  console.error('Unable to load page', error)
-  koiIntro?.stop()
-  const message = document.getElementById('load-error')
-  if (message) message.hidden = false
 }

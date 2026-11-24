@@ -4,9 +4,10 @@
 built-in image generation tool and compressed losslessly to 928,920 bytes. The
 image is 1672 x 941 pixels. Replacing it does not require rebuilding the fish.
 
-On the homepage, the initial HTML requests the PNG at low priority with
-asynchronous decoding. Inline CSS shows three pulsing loading bubbles over a
-water-color gradient while the image and fish module load independently.
+On `/fish`, the initial HTML requests the PNG at low priority with
+asynchronous decoding. The HTML shows a loading bar over a water-color gradient
+while the image and fish module load independently. Each visit chooses one of
+eight fill patterns. The bar completes when the pond draws its first lit frame.
 
 After the first fish paint, `src/lib/koi/intro-scenery.ts` and its CSS add
 ambient bubbles, swaying kelp, branching coral, and distant fish. Hero fish

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { setMaxListeners } from 'node:events'
 import { readFileSync } from 'node:fs'
+import { posix } from 'node:path'
 import { test } from 'node:test'
 import { createContext, runInContext } from 'node:vm'
 import ts from 'typescript'
@@ -15,45 +16,138 @@ function koiModules(globals = {}, overrides = {}) {
       target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS,
     } }).outputText
     const exports = {}
-    runInContext('(function(exports, require){' + js + '})', context)(exports, path => overrides[path] ?? load(path.slice(2)))
+    runInContext('(function(exports, require){' + js + '})', context)(exports, path => overrides[path] ?? load(posix.join(posix.dirname(name), path)))
     cache.set(name, exports)
     return exports
   }
   return load
 }
 
-test('the loading fish beats its tail while the canvas stays anchored', () => {
+test('HTML and client navigation start the pond only on the two fish paths', async () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
+  const inline = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(match => match[1]).join('\n')
+  for (const [url, active] of [
+    ['https://ronakchavva.com/', false], ['https://ronakchavva.com/fish', true],
+    ['https://ronakchavva.com/fish/?color=red#water', true], ['http://localhost:5173/fish?q=1', true],
+    ['https://ronakchavva.com/fishy', false], ['https://ronakchavva.com/fish/unknown', false],
+    ['https://ronakchavva.com/Fish', false], ['https://ronakchavva.com/fish//', false],
+    ['https://os.ronakchavva.com/fish', false], ['https://ronakchavva.com/archive/original', false],
+  ]) {
+    const location = new URL(url), classes = new Set(), image = {}, bar = { dataset: {} }
+    let host, starts = 0
+    const template = { content: { firstElementChild: { cloneNode() {
+      return Object.assign(new EventTarget(), { isConnected: true, toggleAttribute() {},
+        querySelector: s => s === 'img' ? image : bar, remove() { this.isConnected = false; host = undefined } })
+    } } } }
+    const document = Object.assign(new EventTarget(), { body: { append: node => { host = node } },
+      getElementById: id => id === 'koi-intro-template' ? template : host, documentElement: {
+        classList: { add: s => classes.add(s), contains: s => classes.has(s), remove: s => classes.delete(s) } } })
+    const window = new EventTarget(), globals = { location, window, document, Event }
+    runInContext(inline, createContext(globals))
+    assert.equal(classes.has('koi-loading'), active, url)
+    assert.equal(!!image.src, active, url)
+    const { enterFishRoute } = koiModules(globals, { './intro': { startKoiIntro: () => { starts++ } } })('route')
+    const early = host
+    await enterFishRoute()
+    assert.equal(host, early)
+    assert.equal(starts, active ? 1 : 0, url)
+    if (active) {
+      location.pathname = '/'
+      window.dispatchEvent(new Event('popstate'))
+      assert.equal(host, undefined)
+      assert.equal(classes.size, 0)
+      location.pathname = '/fish'
+      const reentry = enterFishRoute()
+      assert.ok(host && host !== early)
+      location.pathname = '/'
+      window.dispatchEvent(new Event('popstate'))
+      await reentry
+      assert.equal(starts, 1, 'a late import reactivated a discarded intro')
+    }
+  }
+})
+
+function loadingIntro(mode = 'right') {
   const width = 96, height = 44
   const image = { width, height, data: new Uint8ClampedArray(width * height * 4) }
   const ctx = { createImageData: () => image, putImageData() {} }
   const canvas = { width, height, style: {}, getContext: () => ctx }
-  const host = Object.assign(new EventTarget(), { querySelector: () => canvas, toggleAttribute() {}, remove() {} })
+  const style = new Map()
+  const bar = { dataset: { mode, progress: '0' }, style: { setProperty: (k, v) => style.set(k, v) } }
+  const host = Object.assign(new EventTarget(), { querySelector: s => s === 'canvas' ? canvas : bar,
+    setAttribute() {}, toggleAttribute() {}, remove() {} })
   const document = Object.assign(new EventTarget(), { hidden: false, getElementById: () => host,
     documentElement: { classList: { contains: () => true, remove() {} } } })
   const frames = new Map()
-  let serial = 0, now = 0
+  let serial = 0, now = 0, tick
   const intro = koiModules({ window: new EventTarget(), document, AbortController, Event,
+    location: { hostname: 'localhost', pathname: '/fish' },
     matchMedia: () => Object.assign(new EventTarget(), { matches: false }),
     innerWidth: 390, innerHeight: 844, devicePixelRatio: 2, performance: { now: () => now },
-    setTimeout: () => 1, clearTimeout() {},
+    setTimeout: fn => { tick = fn; return 1 }, clearTimeout() { tick = undefined },
     requestAnimationFrame(fn) { frames.set(++serial, fn); return serial },
     cancelAnimationFrame(id) { frames.delete(id) },
   }, { './intro-scenery': { mountIntroScenery() {} } })('intro')
   intro.startKoiIntro()
-  const initial = image.data.slice()
-  let moved = false
-  for (let i = 0; i < 45; i++) {
-    now += 1000 / 60
+  function advance(ms) {
+    now += ms
+    tick?.()
     const pending = [...frames.values()]
     frames.clear()
     for (const fn of pending) fn(now)
+  }
+  return { canvas, image, frames, document, intro: intro.koiIntro, advance, style, bar }
+}
+
+test('the loading fish beats its tail while the canvas stays anchored', () => {
+  const { canvas, image, frames, intro, advance } = loadingIntro()
+  const initial = image.data.slice()
+  let moved = false
+  for (let i = 0; i < 45; i++) {
+    advance(1000 / 60)
     assert.equal(canvas.style.transform, undefined)
     if (!moved) moved = image.data.some((value, n) => value !== initial[n])
   }
   assert.ok(moved)
-  intro.koiIntro.stop()
+  intro.stop()
   assert.equal(frames.size, 0)
 })
+
+for (const mode of ['right', 'left', 'split-left', 'split-right', 'wide-down', 'wide-up', 'vertical-down', 'vertical-up']) {
+  test(`the ${mode} bar reserves completion for the first pond frame`, async () => {
+    const { intro, bar, style, advance, document } = loadingIntro(mode)
+    const split = mode.startsWith('split')
+    function check(expected) {
+      assert.equal(Number(bar.dataset.progress), expected)
+      assert.equal(style.get('--lead'), (split ? Math.min(50, expected) : expected) + '%')
+      assert.equal(style.get('--trail'), split ? Math.max(0, expected - 50) + '%' : undefined)
+    }
+    check(4)
+    intro.markLoaded('app')
+    intro.markLoaded('app')
+    check(12)
+    advance(1000)
+    check(39)
+    document.hidden = true
+    document.dispatchEvent(new Event('visibilitychange'))
+    intro.markLoaded('sunlight')
+    advance(5000)
+    check(39)
+    document.hidden = false
+    document.dispatchEvent(new Event('visibilitychange'))
+    check(54)
+    advance(1000)
+    await intro.minimumVisible
+    check(81)
+    intro.markLoaded('scenery')
+    check(96)
+    intro.finish(() => {})
+    check(100)
+    intro.stop()
+    advance(5000)
+    check(100)
+  })
+}
 
 test('the minimum counts two seconds of visible fish and disarms on cancellation', async () => {
   const document = Object.assign(new EventTarget(), { hidden: false })
@@ -62,14 +156,16 @@ test('the minimum counts two seconds of visible fish and disarms on cancellation
     setTimeout(fn, delay) { timer = { fn, delay }; return 1 }, clearTimeout() { timer = undefined },
   })('intro')
   let done = false
-  const gate = waitForVisibleFish(new AbortController().signal).then(() => { done = true })
-  assert.equal(timer.delay, 2000)
+  const progress = []
+  const gate = waitForVisibleFish(new AbortController().signal, value => progress.push(value)).then(() => { done = true })
+  assert.equal(timer.delay, 50)
   now = 750
   document.hidden = true; document.dispatchEvent(new Event('visibilitychange'))
   assert.equal(timer, undefined)
   now = 13000
   document.hidden = false; document.dispatchEvent(new Event('visibilitychange'))
-  assert.equal(timer.delay, 1250)
+  assert.equal(timer.delay, 50)
+  assert.deepEqual(progress, [0, 0.375, 0.375])
   now += 1249; timer.fn()
   assert.equal(timer.delay, 1)
   await Promise.resolve()
@@ -77,8 +173,9 @@ test('the minimum counts two seconds of visible fish and disarms on cancellation
   now++; timer.fn()
   await gate
   assert.ok(done)
+  assert.equal(progress.at(-1), 1)
   assert.equal(timer, undefined)
-  const abort = new AbortController(), cancelled = waitForVisibleFish(abort.signal)
+  const abort = new AbortController(), cancelled = waitForVisibleFish(abort.signal, () => {})
   abort.abort()
   await cancelled
   assert.equal(timer, undefined)

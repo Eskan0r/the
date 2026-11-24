@@ -1,5 +1,5 @@
-import { startKoiIntro, showLoadError } from './lib/koi/intro'
+import { showLoadError } from './lib/load-error'
+import { enterFishRoute } from './lib/koi/route'
 
-// Start fetching the application while drawing the first fish.
 void import('./main').catch(showLoadError)
-if (document.documentElement.classList.contains('koi-loading')) startKoiIntro()
+if (document.documentElement.classList.contains('koi-loading')) void enterFishRoute().catch(showLoadError)

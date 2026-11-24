@@ -10,7 +10,8 @@ import { drawDock } from './dock'
 import { PondSunlight } from './sunlight'
 import { createKoiBehavior, chooseKoiSpawn, planKoiBehavior, advanceKoiCruise } from './behavior'
 import type { PondAssets } from './assets'
-import { showLoadError, type KoiIntro } from './intro'
+import type { KoiIntro } from './intro'
+import { showLoadError } from '../load-error'
 import { startWaterWash } from './wash'
 // Koi scene adapted from Pawan-webdeveloper/Ascii-Animals-extension (MIT).
 // Upstream: https://github.com/Pawan-webdeveloper/Ascii-Animals-extension
