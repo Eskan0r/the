@@ -21,11 +21,22 @@ export type PierLayout = {
   deck: { right: number; top: number; bottom: number }
 }
 export type PondAssets = {
-  images: Record<string, HTMLImageElement>
+  images: Record<string, HTMLImageElement | HTMLCanvasElement>
   masks: Record<string, HTMLCanvasElement>
   pier: Record<'desktop' | 'mobile', PierLayout>
 }
 let pending: Promise<PondAssets> | undefined
+
+// Work on the stone's own pigment before it touches water or another sprite.
+// Mineral faces have much less yellow-green chroma than the painted moss.
+function shadeBankPixel(data: Uint8ClampedArray, i: number, coverage: number) {
+  const r = data[i], g = data[i + 1], b = data[i + 2]
+  const moss = Math.max(0, Math.min(1, (g - b - 29) / 30, (g - r + 4) / 12))
+  const light = g - 154
+  data[i] = r + coverage * ((1 - moss) * (light * 0.35 - 4) + moss * (light * 0.55 - 19))
+  data[i + 1] = g + coverage * ((1 - moss) * light * 0.2 + moss * (light * 0.32 + 13))
+  data[i + 2] = b + coverage * ((1 - moss) * (5 - light * 0.06) + moss * (light * 0.13 - 4))
+}
 
 export function loadPondAssets(): Promise<PondAssets> {
   if (pending) return pending
@@ -41,7 +52,7 @@ export function loadPondAssets(): Promise<PondAssets> {
       return response.json() as Promise<PondAssets['pier']>
     }),
   ]).then(([entries, pier]) => {
-    const images = Object.fromEntries(entries)
+    const images: PondAssets['images'] = Object.fromEntries(entries)
     const masks: Record<string, HTMLCanvasElement> = {}
     // Derive bank-lighting silhouettes from alpha, so editing a rock PNG also
     // updates its caustic mask without requiring a second hand-maintained image.
@@ -52,13 +63,22 @@ export function loadPondAssets(): Promise<PondAssets> {
       const ctx = canvas.getContext('2d')!
       ctx.drawImage(image, 0, 0)
       const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const mask = document.createElement('canvas')
+      mask.width = image.width; mask.height = image.height
+      const maskContext = mask.getContext('2d')!
+      const silhouette = maskContext.createImageData(mask.width, mask.height)
       for (let i = 0; i < pixels.data.length; i += 4) {
         const alpha = pixels.data[i + 3] / 255
-        pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = 48
-        pixels.data[i + 3] = Math.max(0, Math.min(255, (alpha - 0.45) / 0.55 * 255))
+        const coverage = Math.max(0, Math.min(1, (alpha - 0.45) / 0.55))
+        if (!coverage) continue
+        shadeBankPixel(pixels.data, i, coverage)
+        silhouette.data[i] = silhouette.data[i + 1] = silhouette.data[i + 2] = 48
+        silhouette.data[i + 3] = coverage * 255
       }
       ctx.putImageData(pixels, 0, 0)
-      masks[name] = canvas
+      maskContext.putImageData(silhouette, 0, 0)
+      images[name] = canvas
+      masks[name] = mask
     }
     return { images, masks, pier }
   }).catch(error => { pending = undefined; throw error })

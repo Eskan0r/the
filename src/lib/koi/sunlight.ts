@@ -64,9 +64,9 @@ export class PondSunlight {
     for (let pixel = 0; pixel < this.light.length; pixel++) {
       const i = this.coordinates[pixel]
       const irradiance = (first[i] * (1 - mix) + next[i] * mix) * 4 / 255
-      // Keep ambient water readable and reserve highlights for focused rays.
+      // Compress the brightest ribbons above twice the mean irradiance.
       this.light[pixel] = irradiance > 1.25
-        ? Math.min(60, (irradiance - 1.25) * 27)
+        ? Math.min((irradiance - 1.25) * 27, 20.25 + (irradiance - 2) * 13)
         : Math.max(-12, (irradiance - 1) * 16)
     }
   }
