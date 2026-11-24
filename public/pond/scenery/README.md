@@ -15,6 +15,12 @@ anchor when replacing a sprite. Positions and sizes are in
 `src/lib/koi/environment.ts`; asset paths are in `src/lib/koi/assets.ts`.
 Moss-rock caustic masks are derived automatically from PNG transparency.
 
+When the pond is sized, the renderer tints the floor from cool turquoise in
+deep water to jade at the banks. Submerged pebbles pick up the local water color.
+The bank sprites keep their painted transparency and contact shadows. Their
+stone faces and olive moss receive separate color adjustments at load time.
+The lily beds and floating leaves reserve open water around their silhouettes.
+
 Normal builds use the PNG files as-is. To regenerate the original artwork,
 start Vite on port 5180 and local Chromium debugging on port 9336, then run:
 
