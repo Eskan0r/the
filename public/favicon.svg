@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" shape-rendering="crispEdges">
+  <defs>
+    <path id="r" fill-rule="evenodd" d="M2 2H9V3H11V4H12V7H11V8H9V9H10V10H11V11H12V12H13V13H10V12H9V11H8V10H7V9H5V13H2ZM5 4V7H9V4Z"/>
+  </defs>
+  <path fill="#182E32" d="M1 0H15V1H16V15H15V16H1V15H0V1H1Z"/>
+  <use href="#r" x="1" y="1" fill="#468078"/>
+  <path fill="#182E32" d="M5 4H9V7H5Z"/>
+  <use href="#r" fill="#F4EEDB"/>
+</svg>
